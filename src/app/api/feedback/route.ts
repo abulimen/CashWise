@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { insertAiFeedback, insertAuditTrail } from '@/lib/serverStore';
+import { insertAiFeedback, insertAuditTrail } from '@/lib/aiStore';
+import { getAppUserId } from '@/lib/supabaseServer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +13,12 @@ export async function POST(request: NextRequest) {
       confidence?: number;
     };
 
-    const userId = body.userId || 'demo-user';
+    const userId = body.userId || getAppUserId();
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId and CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
+    }
     const isAccepted = body.userExplanation.toLowerCase().includes('accept');
-    const row = insertAiFeedback({
+    const row = await insertAiFeedback({
       user_id: userId,
       query: body.query,
       ai_suggestion: body.aiSuggestion,
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    insertAuditTrail({
+    await insertAuditTrail({
       user_id: userId,
       timestamp: row.timestamp,
       action: body.actionType || 'Chat',

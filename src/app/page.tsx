@@ -7,13 +7,23 @@ import { TrustScore } from '@/components/TrustScore';
 import { AutoStash } from '@/components/AutoStash';
 import { TransactionHistory } from '@/components/TransactionHistory';
 import { ConsentModal } from '@/components/ConsentModal';
-import { mockFinancialData } from '@/lib/mockData';
 import { calculateTrustScore } from '@/lib/trustScore';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
 
 export default function Home() {
-  const [financialData, setFinancialData] = useState<FinancialData>(mockFinancialData);
+  const appUserId = process.env.NEXT_PUBLIC_CASHWISE_DEMO_USER_ID || '';
+  const [financialData, setFinancialData] = useState<FinancialData>({
+    balance: 0,
+    currency: '₦',
+    daysRemaining: 1,
+    dailyBudget: 0,
+    averageDailySpending: 0,
+    savingsGoal: 0,
+    currentSavings: 0,
+    transactions: [],
+    lastUpdated: new Date().toISOString(),
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAutoStash, setShowAutoStash] = useState(false);
@@ -26,24 +36,32 @@ export default function Home() {
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
 
   // Auto-stash suggestion
-  const autoStashSuggestion: AutoStashSuggestion = useMemo(() => ({
-    incomingAmount: 5000,
-    suggestedSavings: 1500,
-    reasoning: 'Based on your goal of ₦50,000 and current savings of ₦16,000, saving 30% of incoming funds keeps you on track',
-    savingsGoal: 50000,
-    currentSavings: 16000,
-  }), []);
+  const autoStashSuggestion: AutoStashSuggestion = useMemo(() => {
+    const latestCredit = [...financialData.transactions]
+      .filter((tx) => tx.type === 'credit')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const incomingAmount = latestCredit?.amount || 0;
+    const suggestedSavings = incomingAmount > 0 ? Math.max(0, Math.round(incomingAmount * 0.3)) : 0;
+    return {
+      incomingAmount,
+      suggestedSavings,
+      reasoning: 'Evaluating your latest confirmed inflow and active goals from Supabase data.',
+      savingsGoal: financialData.savingsGoal,
+      currentSavings: financialData.currentSavings,
+    };
+  }, [financialData]);
 
   const [autoStashAdvice, setAutoStashAdvice] = useState<Partial<AutoStashSuggestion>>({});
 
   const initEncryptedCache = async () => {
+    if (!appUserId) return;
     const dekBase64 = await generateDekBase64();
     const encrypted = await encryptWithDekBase64(financialData, dekBase64);
     await fetch('/api/transactions/cache', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: 'demo-user',
+        userId: appUserId,
         encryptedBlob: encrypted.encryptedBlob,
         iv: encrypted.iv,
         dekBase64,
@@ -52,8 +70,9 @@ export default function Home() {
   };
 
   const refreshFinancialData = async (force: boolean) => {
+    if (!appUserId) return;
     const params = new URLSearchParams({
-      userId: 'demo-user',
+      userId: appUserId,
       consent: 'allow',
       force: force ? 'true' : 'false',
     });
@@ -71,7 +90,8 @@ export default function Home() {
   };
 
   const loadAuditTrail = async () => {
-    const response = await fetch('/api/audit?userId=demo-user');
+    if (!appUserId) return;
+    const response = await fetch(`/api/audit?userId=${encodeURIComponent(appUserId)}`);
     if (!response.ok) return;
     const data = await response.json();
     setAuditRows(data.rows || []);
@@ -83,7 +103,7 @@ export default function Home() {
       requestConsentForPull(false, true);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [appUserId]);
 
   useEffect(() => {
     if (activeView === 'audit') {
@@ -105,7 +125,7 @@ export default function Home() {
         });
         if (!response.ok) return;
         const data = await response.json();
-        const shouldSuggest = Boolean(data?.shouldSuggest);
+        const shouldSuggest = Boolean(data?.shouldSuggest) && autoStashSuggestion.incomingAmount > 0 && autoStashSuggestion.suggestedSavings > 0;
         setShowAutoStash(shouldSuggest);
         setAutoStashAdvice({
           reasoning: data?.adviceMeta?.suggestion || data.message || autoStashSuggestion.reasoning,
@@ -188,11 +208,12 @@ export default function Home() {
   };
 
   const submitFeedback = async (payload: { query: string; aiSuggestion: string; explanation: string; actionType: 'Chat' | 'Auto-Stash'; confidence: number }) => {
+    if (!appUserId) return;
     await fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: 'demo-user',
+        userId: appUserId,
         query: payload.query,
         aiSuggestion: payload.aiSuggestion,
         userExplanation: payload.explanation,

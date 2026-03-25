@@ -1,30 +1,25 @@
 import { NextResponse } from 'next/server';
-import { mockFinancialData } from '@/lib/mockData';
 import { FinancialDataResponse } from '@/lib/types';
 import { decryptWithDekBase64, encryptWithDekBase64, unwrapDekForUser } from '@/lib/secureCache';
-import { getEncryptedCache, upsertEncryptedCache } from '@/lib/serverStore';
+import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
+import { appendTransactionDelta, loadFinancialData } from '@/lib/financialDataService';
 
 const TWO_MINUTES_MS = 2 * 60 * 1000;
 
-function buildMockDelta() {
-  return {
-    id: `txn_delta_${Date.now()}`,
-    type: 'debit' as const,
-    amount: 750,
-    description: 'Quick snack',
-    category: 'food' as const,
-    date: new Date().toISOString(),
-    narration: 'POS PURCHASE - CAMPUS KIOSK',
-  };
-}
-
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || 'demo-user';
+  const userId = url.searchParams.get('userId') || getAppUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId and CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
+  }
   const forceRefresh = url.searchParams.get('force') === 'true';
   const hasConsent = url.searchParams.get('consent') === 'allow';
-  const useMock = process.env.NEXT_PUBLIC_USE_MOCK_DATA !== 'false';
-  const cached = getEncryptedCache(userId);
+  const supabase = getSupabaseAdmin();
+  const { data: cached } = await supabase
+    .from('encrypted_transaction_cache')
+    .select('user_id, encrypted_blob, wrapped_dek, iv, last_fetched_at, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle();
 
   if (cached) {
     const dekBase64 = await unwrapDekForUser(userId, cached.wrapped_dek);
@@ -37,7 +32,7 @@ export async function GET(request: Request) {
     if (!forceRefresh && isFresh) {
       return NextResponse.json({
         data: cachedData,
-        source: useMock ? 'mock' : 'mono',
+        source: 'mono',
       } satisfies FinancialDataResponse);
     }
 
@@ -48,15 +43,11 @@ export async function GET(request: Request) {
       );
     }
 
-    const deltaTransaction = buildMockDelta();
-    const merged = {
-      ...cachedData,
-      transactions: [deltaTransaction, ...cachedData.transactions].slice(0, 50),
-      lastUpdated: new Date().toISOString(),
-    };
+    await appendTransactionDelta(userId);
+    const merged = await loadFinancialData(userId);
 
     const reEncrypted = await encryptWithDekBase64(merged, dekBase64);
-    upsertEncryptedCache({
+    await supabase.from('encrypted_transaction_cache').upsert({
       user_id: userId,
       encrypted_blob: reEncrypted.encryptedBlob,
       iv: reEncrypted.iv,
@@ -67,23 +58,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: merged,
-      source: useMock ? 'mock' : 'mono',
+      source: 'mono',
     } satisfies FinancialDataResponse);
   }
 
-  if (useMock) {
-    const response: FinancialDataResponse = {
-      data: mockFinancialData,
-      source: 'mock',
-    };
-    return NextResponse.json(response);
-  }
-
-  // Mono integration placeholder — will be implemented in Phase 3
-  // For now, fall back to mock
+  const freshData = await loadFinancialData(userId);
   const response: FinancialDataResponse = {
-    data: mockFinancialData,
-    source: 'mock',
+    data: freshData,
+    source: 'mono',
   };
   return NextResponse.json(response);
 }

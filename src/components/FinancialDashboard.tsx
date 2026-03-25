@@ -1,7 +1,7 @@
 'use client';
 
 import { FinancialData } from '@/lib/types';
-import { formatNaira } from '@/lib/mockData';
+import { formatNaira } from '@/lib/currency';
 
 interface FinancialDashboardProps {
   data: FinancialData;

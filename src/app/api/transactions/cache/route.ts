@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertEncryptedCache } from '@/lib/serverStore';
 import { wrapDekForUser } from '@/lib/secureCache';
+import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,17 +11,28 @@ export async function POST(request: NextRequest) {
       dekBase64: string;
     };
 
-    const userId = body.userId || 'demo-user';
+    const userId = body.userId || getAppUserId();
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId and CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
+    }
     const wrappedDek = await wrapDekForUser(userId, body.dekBase64);
+    const supabase = getSupabaseAdmin();
 
-    const row = upsertEncryptedCache({
+    const { data: row, error } = await supabase
+      .from('encrypted_transaction_cache')
+      .upsert({
       user_id: userId,
       encrypted_blob: body.encryptedBlob,
       iv: body.iv,
       wrapped_dek: wrappedDek,
       last_fetched_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    });
+      })
+      .select('user_id, last_fetched_at')
+      .single();
+    if (error || !row) {
+      throw new Error(error?.message || 'Failed to upsert cache row');
+    }
 
     return NextResponse.json({
       ok: true,

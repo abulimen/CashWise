@@ -2,12 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ChatRequest, ChatResponse, AIRecommendation, DataCitation } from '@/lib/types';
 import { parseAmountFromMessage, generateDecision } from '@/lib/decisionEngine';
 import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
-import { insertAuditTrail, listRecentAiFeedback } from '@/lib/serverStore';
+import { insertAuditTrail, listRecentAiFeedback } from '@/lib/aiStore';
+import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
+
+interface BillRow {
+  id: string;
+  name: string;
+  amount: number | string;
+  due_date: string;
+}
+
+interface GoalRow {
+  id: string;
+  title: string;
+  target_amount: number | string;
+  current_amount: number | string;
+  due_date: string | null;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
     const { message, financialData, conversationHistory } = body;
+    const userId = getAppUserId();
+    if (!userId) {
+      return NextResponse.json({ message: 'CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
+    }
 
     // Try to parse a purchase amount from the message
     const parsed = parseAmountFromMessage(message);
@@ -30,16 +50,30 @@ export async function POST(request: NextRequest) {
     let usedPromptSnippet = '';
 
     try {
+      const supabase = getSupabaseAdmin();
+      const [{ data: bills }, { data: goals }, feedback] = await Promise.all([
+        supabase.from('upcoming_bills').select('id, name, amount, due_date').eq('user_id', userId).eq('status', 'pending').order('due_date', { ascending: true }).limit(10),
+        supabase.from('savings_goals').select('id, title, target_amount, current_amount, due_date').eq('user_id', userId).eq('is_active', true).order('created_at', { ascending: false }).limit(5),
+        listRecentAiFeedback(userId, 5),
+      ]);
+
       const retrievalContext = buildRetrievalContext({
-        userId: 'demo-user',
+        userId,
         financialData,
-        upcomingBills: [
-          { id: 'bill_hostel', name: 'Hostel contribution', amount: 5000, dueDate: new Date(Date.now() + (1000 * 60 * 60 * 24 * 11)).toISOString() },
-        ],
-        savingsGoals: [
-          { id: 'goal_main', title: 'Emergency cushion', targetAmount: financialData.savingsGoal, currentAmount: financialData.currentSavings },
-        ],
-        recentFeedback: listRecentAiFeedback('demo-user', 5),
+        upcomingBills: ((bills || []) as BillRow[]).map((bill) => ({
+          id: bill.id,
+          name: bill.name,
+          amount: Number(bill.amount || 0),
+          dueDate: new Date(bill.due_date).toISOString(),
+        })),
+        savingsGoals: ((goals || []) as GoalRow[]).map((goal) => ({
+          id: goal.id,
+          title: goal.title,
+          targetAmount: Number(goal.target_amount || 0),
+          currentAmount: Number(goal.current_amount || 0),
+          dueDate: goal.due_date ? new Date(goal.due_date).toISOString() : undefined,
+        })),
+        recentFeedback: feedback,
       });
 
       const judged = await generateJudgedAdvice({
@@ -83,8 +117,8 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    insertAuditTrail({
-      user_id: 'demo-user',
+    await insertAuditTrail({
+      user_id: userId,
       timestamp: new Date().toISOString(),
       action: 'Chat',
       suggestion: responseMessage,
