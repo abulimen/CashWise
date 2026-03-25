@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FinancialData } from '@/lib/types';
 import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
+import { insertAuditTrail, listRecentAiFeedback } from '@/lib/serverStore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
       savingsGoals: [
         { id: 'goal_main', title: 'Emergency cushion', targetAmount: financialData.savingsGoal, currentAmount: financialData.currentSavings },
       ],
+      recentFeedback: listRecentAiFeedback('demo-user', 5),
     });
 
     const prompt = `You are reviewing an Auto-Stash proposal. Incoming cash: ₦${incomingAmount.toLocaleString('en-NG')}. Proposed stash: ₦${suggestedSavings.toLocaleString('en-NG')}. Should the user accept? Start with yes/no and cite data.`;
@@ -30,8 +32,17 @@ export async function POST(request: NextRequest) {
       conversationHistory: [],
     });
 
+    insertAuditTrail({
+      user_id: 'demo-user',
+      timestamp: new Date().toISOString(),
+      action: 'Auto-Stash',
+      suggestion: judged.finalResponse,
+      user_decision: 'Pending',
+      confidence: judged.confidenceScore,
+    });
+
     return NextResponse.json({
-      message: judged.finalResponse,
+      message: `${judged.finalResponse}\n\nConfidence score: ${judged.confidenceScore}/100`,
       confidenceScore: judged.confidenceScore,
       citations: judged.citations,
       reasoningTrace: judged.reasoningTrace,
@@ -41,6 +52,7 @@ export async function POST(request: NextRequest) {
         suggestion: judged.finalResponse,
       },
     });
+    
   } catch (error) {
     console.error('Auto-Stash advice error:', error);
     return NextResponse.json({ error: 'Unable to generate Auto-Stash advice' }, { status: 500 });

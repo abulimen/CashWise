@@ -233,6 +233,20 @@ input, textarea {
   text-transform: uppercase;
 }
 
+.refresh-btn {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+}
+
+.refresh-btn-small {
+  margin-left: 0;
+}
+
 /* Balance card */
 .balance-card {
   padding: var(--space-8);
@@ -1000,6 +1014,174 @@ input, textarea {
 
 .auto-stash-btn-decline:hover {
   color: var(--color-no);
+}
+
+.consent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.consent-modal {
+  width: min(92vw, 440px);
+  padding: var(--space-6);
+}
+
+.consent-title {
+  font-size: var(--text-lg);
+  font-family: var(--font-display);
+  margin-bottom: var(--space-3);
+}
+
+.consent-copy {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.consent-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.consent-btn {
+  flex: 1;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-weight: 600;
+}
+
+.consent-btn-allow {
+  background: var(--gradient-accent);
+  color: var(--color-bg-primary);
+}
+
+.consent-btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border);
+}
+
+.confidence-badge {
+  margin-top: var(--space-3);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  border: 1px solid transparent;
+}
+
+.confidence-good { background: rgba(0, 208, 156, 0.14); color: #20f2b9; }
+.confidence-mid { background: rgba(245, 158, 11, 0.14); color: #ffc96b; }
+.confidence-low { background: rgba(239, 68, 68, 0.14); color: #ff7d7d; }
+
+.citation-panel {
+  margin-top: var(--space-2);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.citation-line {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.feedback-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.feedback-btn {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  border: 1px solid transparent;
+}
+
+.feedback-btn-accept {
+  background: rgba(0, 208, 156, 0.14);
+  color: #20f2b9;
+}
+
+.feedback-btn-disagree {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ff9393;
+}
+
+.xai-accordion {
+  margin-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+  padding-top: var(--space-2);
+}
+
+.xai-content {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.xai-heading {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.feedback-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.feedback-chip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.feedback-chip.active {
+  background: rgba(0, 208, 156, 0.14);
+  border-color: rgba(0, 208, 156, 0.4);
+}
+
+.feedback-textarea {
+  width: 100%;
+  min-height: 92px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+}
+
+.disclaimer-line {
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.audit-table th,
+.audit-table td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 6px;
 }
 
 /* --- Responsive --- */

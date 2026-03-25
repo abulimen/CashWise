@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ChatRequest, ChatResponse, AIRecommendation } from '@/lib/types';
+import { ChatRequest, ChatResponse, AIRecommendation, DataCitation } from '@/lib/types';
 import { parseAmountFromMessage, generateDecision } from '@/lib/decisionEngine';
 import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
+import { insertAuditTrail, listRecentAiFeedback } from '@/lib/serverStore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Run grounded AI generation + strict judge correction
     let responseMessage = '';
     let confidenceScore = 0;
-    let citations = [];
+    let citations: DataCitation[] = [];
     let reasoningTrace = '';
     let usedPromptSnippet = '';
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
         savingsGoals: [
           { id: 'goal_main', title: 'Emergency cushion', targetAmount: financialData.savingsGoal, currentAmount: financialData.currentSavings },
         ],
+        recentFeedback: listRecentAiFeedback('demo-user', 5),
       });
 
       const judged = await generateJudgedAdvice({
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
         conversationHistory,
       });
 
-      responseMessage = judged.finalResponse;
+      responseMessage = `${judged.finalResponse}\n\nConfidence score: ${judged.confidenceScore}/100`;
       confidenceScore = judged.confidenceScore;
       citations = judged.citations;
       reasoningTrace = judged.reasoningTrace;
@@ -80,6 +82,15 @@ export async function POST(request: NextRequest) {
         suggestion: responseMessage,
       },
     };
+
+    insertAuditTrail({
+      user_id: 'demo-user',
+      timestamp: new Date().toISOString(),
+      action: 'Chat',
+      suggestion: responseMessage,
+      user_decision: 'Pending',
+      confidence: confidenceScore,
+    });
 
     return NextResponse.json(response);
   } catch (error) {
