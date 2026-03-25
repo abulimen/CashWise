@@ -16,7 +16,7 @@ export default function Home() {
   const [financialData, setFinancialData] = useState<FinancialData>(mockFinancialData);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showAutoStash, setShowAutoStash] = useState(true);
+  const [showAutoStash, setShowAutoStash] = useState(false);
   const [consentOpen, setConsentOpen] = useState(false);
   const [pendingRefresh, setPendingRefresh] = useState<{ force: boolean; background: boolean } | null>(null);
   const [activeView, setActiveView] = useState<'home' | 'audit'>('home');
@@ -105,6 +105,8 @@ export default function Home() {
         });
         if (!response.ok) return;
         const data = await response.json();
+        const shouldSuggest = Boolean(data?.shouldSuggest);
+        setShowAutoStash(shouldSuggest);
         setAutoStashAdvice({
           reasoning: data?.adviceMeta?.suggestion || data.message || autoStashSuggestion.reasoning,
           confidenceScore: data.confidenceScore,
@@ -114,6 +116,7 @@ export default function Home() {
         });
       } catch {
         // Keep default suggestion reasoning when AI is unavailable.
+        setShowAutoStash(false);
       }
     };
     loadAutoStashAdvice();

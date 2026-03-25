@@ -32,6 +32,15 @@ export async function POST(request: NextRequest) {
       conversationHistory: [],
     });
 
+    const normalized = judged.finalResponse.toLowerCase();
+    const startsWithYes = normalized.startsWith('yes');
+    const hasUncertainSignal =
+      normalized.includes("don't have enough info") ||
+      normalized.includes('cannot verify') ||
+      normalized.includes('cannot recommend') ||
+      normalized.includes('not enough info');
+    const shouldSuggest = startsWithYes && !hasUncertainSignal && judged.confidenceScore >= 70;
+
     insertAuditTrail({
       user_id: 'demo-user',
       timestamp: new Date().toISOString(),
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: `${judged.finalResponse}\n\nConfidence score: ${judged.confidenceScore}/100`,
+      shouldSuggest,
       confidenceScore: judged.confidenceScore,
       citations: judged.citations,
       reasoningTrace: judged.reasoningTrace,
