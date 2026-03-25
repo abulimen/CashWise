@@ -86,7 +86,7 @@ export async function callGemini(
     const errorText = await response.text();
     if (response.status === 429) {
       console.warn(`Gemini key rate-limited. ${retriesLeft - 1} retries left.`);
-      return callGemini(systemPrompt, userMessage, conversationHistory, retriesLeft - 1);
+      return callGemini(systemPrompt, userMessage, conversationHistory, options, retriesLeft - 1);
     }
     throw new Error(`Gemini API error: ${response.status} ${errorText}`);
   }
