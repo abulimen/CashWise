@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { ChatInterface } from '@/components/ChatInterface';
 import { TrustScore } from '@/components/TrustScore';
@@ -20,13 +20,43 @@ export default function Home() {
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
 
   // Auto-stash suggestion
-  const autoStashSuggestion: AutoStashSuggestion = {
+  const autoStashSuggestion: AutoStashSuggestion = useMemo(() => ({
     incomingAmount: 5000,
     suggestedSavings: 1500,
     reasoning: 'Based on your goal of ₦50,000 and current savings of ₦16,000, saving 30% of incoming funds keeps you on track',
     savingsGoal: 50000,
     currentSavings: 16000,
-  };
+  }), []);
+
+  const [autoStashAdvice, setAutoStashAdvice] = useState<Partial<AutoStashSuggestion>>({});
+
+  useEffect(() => {
+    const loadAutoStashAdvice = async () => {
+      try {
+        const response = await fetch('/api/auto-stash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            incomingAmount: autoStashSuggestion.incomingAmount,
+            suggestedSavings: autoStashSuggestion.suggestedSavings,
+            financialData,
+          }),
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setAutoStashAdvice({
+          reasoning: data.message || autoStashSuggestion.reasoning,
+          confidenceScore: data.confidenceScore,
+          citations: data.citations,
+          reasoningTrace: data.reasoningTrace,
+          usedPromptSnippet: data.usedPromptSnippet,
+        });
+      } catch {
+        // Keep default suggestion reasoning when AI is unavailable.
+      }
+    };
+    loadAutoStashAdvice();
+  }, [financialData]);
 
   const handleSendMessage = async (content: string) => {
     // Add user message
@@ -58,9 +88,14 @@ export default function Home() {
         content: data.message,
         timestamp: new Date().toISOString(),
         recommendation: data.recommendation,
+        confidenceScore: data.confidenceScore,
+        citations: data.citations,
+        reasoningTrace: data.reasoningTrace,
+        usedPromptSnippet: data.usedPromptSnippet,
+        adviceMeta: data.adviceMeta,
       };
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch {
       // Fallback response if API fails
       const errorMessage: ChatMessage = {
         id: `msg_${Date.now()}_err`,
@@ -106,7 +141,7 @@ export default function Home() {
 
         {showAutoStash && (
           <AutoStash
-            suggestion={autoStashSuggestion}
+            suggestion={{ ...autoStashSuggestion, ...autoStashAdvice }}
             onAccept={handleAutoStashAccept}
             onDecline={handleAutoStashDecline}
           />

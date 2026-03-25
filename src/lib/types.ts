@@ -46,6 +46,11 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   recommendation?: AIRecommendation;
+  confidenceScore?: number;
+  citations?: DataCitation[];
+  reasoningTrace?: string;
+  usedPromptSnippet?: string;
+  adviceMeta?: AdviceMeta;
 }
 
 export interface AIRecommendation {
@@ -104,6 +109,10 @@ export interface AutoStashSuggestion {
   reasoning: string; // e.g. "Based on your goal of ₦50,000 and current savings of ₦12,000"
   savingsGoal: number;
   currentSavings: number;
+  confidenceScore?: number;
+  citations?: DataCitation[];
+  reasoningTrace?: string;
+  usedPromptSnippet?: string;
 }
 
 // --- API ---
@@ -117,9 +126,59 @@ export interface ChatRequest {
 export interface ChatResponse {
   message: string;
   recommendation?: AIRecommendation;
+  confidenceScore?: number;
+  citations?: DataCitation[];
+  reasoningTrace?: string;
+  usedPromptSnippet?: string;
+  adviceMeta?: AdviceMeta;
 }
 
 export interface FinancialDataResponse {
   data: FinancialData;
   source: 'mock' | 'mono';
+}
+
+export interface UserProfile {
+  userId: string;
+  name: string;
+  school?: string;
+  allowanceCycleDays?: number;
+}
+
+export interface UpcomingBill {
+  id: string;
+  name: string;
+  amount: number;
+  dueDate: string;
+}
+
+export interface SavingsGoal {
+  id: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  dueDate?: string;
+}
+
+export interface DataCitation {
+  txId: string;
+  date: string;
+  amount: number;
+  category: string;
+  description: string;
+}
+
+export interface AiFeedbackRow {
+  user_id: string;
+  query: string;
+  ai_suggestion: string;
+  user_explanation: string;
+  timestamp: string;
+}
+
+export interface AdviceMeta {
+  actionType: 'Chat' | 'Auto-Stash';
+  suggestion: string;
+  decision?: 'Accepted' | 'Overridden';
+  explanation?: string;
 }

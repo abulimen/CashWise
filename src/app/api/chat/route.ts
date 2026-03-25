@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ChatRequest, ChatResponse, AIRecommendation } from '@/lib/types';
 import { parseAmountFromMessage, generateDecision } from '@/lib/decisionEngine';
-import { callGemini, buildSystemPrompt } from '@/lib/geminiClient';
-import { formatNaira } from '@/lib/mockData';
+import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
 
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
     const { message, financialData, conversationHistory } = body;
-
-    // Build context string for the AI
-    const financialContext = `
-Balance: ${formatNaira(financialData.balance)}
-Days remaining this month: ${financialData.daysRemaining}
-Daily budget: ${formatNaira(financialData.dailyBudget)}/day
-Average daily spending: ${formatNaira(financialData.averageDailySpending)}/day
-Savings goal: ${formatNaira(financialData.savingsGoal)}
-Current savings: ${formatNaira(financialData.currentSavings)}
-Recent transactions: ${financialData.transactions.slice(-5).map(t =>
-  `${t.type === 'debit' ? '-' : '+'}${formatNaira(t.amount)} (${t.description})`
-).join(', ')}`;
 
     // Try to parse a purchase amount from the message
     const parsed = parseAmountFromMessage(message);
@@ -34,25 +21,36 @@ Recent transactions: ${financialData.transactions.slice(-5).map(t =>
       });
     }
 
-    // Try Gemini for natural language response
+    // Run grounded AI generation + strict judge correction
     let responseMessage = '';
-    let geminiRecommendation: AIRecommendation | undefined;
+    let confidenceScore = 0;
+    let citations = [];
+    let reasoningTrace = '';
+    let usedPromptSnippet = '';
 
     try {
-      const systemPrompt = buildSystemPrompt(financialContext);
+      const retrievalContext = buildRetrievalContext({
+        userId: 'demo-user',
+        financialData,
+        upcomingBills: [
+          { id: 'bill_hostel', name: 'Hostel contribution', amount: 5000, dueDate: new Date(Date.now() + (1000 * 60 * 60 * 24 * 11)).toISOString() },
+        ],
+        savingsGoals: [
+          { id: 'goal_main', title: 'Emergency cushion', targetAmount: financialData.savingsGoal, currentAmount: financialData.currentSavings },
+        ],
+      });
 
-      // Build conversation history for Gemini
-      const geminiHistory = conversationHistory.slice(-6).map(msg => ({
-        role: (msg.role === 'user' ? 'user' : 'model') as 'user' | 'model',
-        parts: [{ text: msg.content }],
-      }));
+      const judged = await generateJudgedAdvice({
+        userQuery: message,
+        retrievalContext,
+        conversationHistory,
+      });
 
-      const geminiRaw = await callGemini(systemPrompt, message, geminiHistory);
-
-      // Parse Gemini JSON response
-      const geminiParsed = JSON.parse(geminiRaw);
-      responseMessage = geminiParsed.message || '';
-      geminiRecommendation = geminiParsed.recommendation;
+      responseMessage = judged.finalResponse;
+      confidenceScore = judged.confidenceScore;
+      citations = judged.citations;
+      reasoningTrace = judged.reasoningTrace;
+      usedPromptSnippet = judged.usedPromptSnippet;
     } catch (geminiError) {
       console.warn('Gemini failed, using local decision engine:', geminiError);
       // Fall back to local-generated message
@@ -68,12 +66,19 @@ Recent transactions: ${financialData.transactions.slice(-5).map(t =>
       }
     }
 
-    // Prefer local recommendation (more reliable math) but use Gemini message
-    const finalRecommendation = localRecommendation || geminiRecommendation;
+    const finalRecommendation = localRecommendation;
 
     const response: ChatResponse = {
       message: responseMessage,
       recommendation: finalRecommendation,
+      confidenceScore,
+      citations,
+      reasoningTrace,
+      usedPromptSnippet,
+      adviceMeta: {
+        actionType: 'Chat',
+        suggestion: responseMessage,
+      },
     };
 
     return NextResponse.json(response);

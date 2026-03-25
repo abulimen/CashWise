@@ -28,10 +28,19 @@ interface GeminiResponse {
   }>;
 }
 
+interface GeminiCallOptions {
+  model?: string;
+  temperature?: number;
+  topP?: number;
+  responseMimeType?: string;
+  maxOutputTokens?: number;
+}
+
 export async function callGemini(
   systemPrompt: string,
   userMessage: string,
   conversationHistory: GeminiMessage[] = [],
+  options: GeminiCallOptions = {},
   _retriesLeft?: number
 ): Promise<string> {
   const keys = (process.env.GEMINI_API_KEYS || '').split(',').filter(Boolean);
@@ -43,7 +52,7 @@ export async function callGemini(
   }
 
   const apiKey = getNextApiKey();
-  const model = 'gemini-2.0-flash-lite';
+  const model = options.model || 'gemini-3.1-flash-lite-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const contents: GeminiMessage[] = [
@@ -60,9 +69,10 @@ export async function callGemini(
     },
     contents,
     generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1500,
-      responseMimeType: 'application/json',
+      temperature: options.temperature ?? 0.1,
+      topP: options.topP ?? 0.9,
+      maxOutputTokens: options.maxOutputTokens ?? 1500,
+      responseMimeType: options.responseMimeType ?? 'application/json',
     },
   };
 

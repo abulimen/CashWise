@@ -35,7 +35,7 @@ export function parseAmountFromMessage(message: string): ParsedAmount | null {
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match) {
-      let raw = match[1].replace(/,/g, '');
+      const raw = match[1].replace(/,/g, '');
       amount = parseFloat(raw);
       // Handle "k" shorthand
       if (message.toLowerCase().includes('k') && amount < 1000) {
@@ -69,7 +69,7 @@ export function parseAmountFromMessage(message: string): ParsedAmount | null {
  * Generate a full decision with reasoning chain.
  */
 export function generateDecision(input: DecisionInput): AIRecommendation {
-  const { amount, description, financialData } = input;
+  const { amount, financialData } = input;
   const { balance, daysRemaining, dailyBudget, averageDailySpending, savingsGoal, currentSavings } = financialData;
 
   const reasoning: ReasoningStep[] = [];
@@ -111,7 +111,6 @@ export function generateDecision(input: DecisionInput): AIRecommendation {
 
   // Step 4: Check savings goal impact
   const savingsRemaining = savingsGoal - currentSavings;
-  const monthlySavingsTarget = savingsRemaining; // simplified
   const canStillSave = balanceAfter > (averageDailySpending * daysRemaining);
   let savingsGoalImpact = '';
 
