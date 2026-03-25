@@ -14,6 +14,9 @@ export async function GET() {
     .maybeSingle();
 
   if (error) {
+    if (error.message.includes('bulk_inflow_min_amount')) {
+      return NextResponse.json({ bulkInflowMinAmount: 10000 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -42,6 +45,11 @@ export async function PATCH(request: NextRequest) {
     });
 
   if (error) {
+    if (error.message.includes('bulk_inflow_min_amount')) {
+      return NextResponse.json({
+        error: 'Schema update required: add user_profiles.bulk_inflow_min_amount column in Supabase SQL Editor.',
+      }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
