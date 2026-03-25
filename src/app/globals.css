@@ -265,6 +265,12 @@ input, textarea {
   background: var(--color-accent-dim);
   filter: blur(60px);
   pointer-events: none;
+  z-index: 0;
+}
+
+.balance-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .balance-label {
