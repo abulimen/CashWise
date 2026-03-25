@@ -10,6 +10,7 @@ import { ConsentModal } from '@/components/ConsentModal';
 import { calculateTrustScore } from '@/lib/trustScore';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
+import { detectNewBulkInflow } from '@/lib/inflowDetection';
 
 export default function Home() {
   const appUserId = process.env.NEXT_PUBLIC_CASHWISE_DEMO_USER_ID || '';
@@ -37,10 +38,8 @@ export default function Home() {
 
   // Auto-stash suggestion
   const autoStashSuggestion: AutoStashSuggestion = useMemo(() => {
-    const latestCredit = [...financialData.transactions]
-      .filter((tx) => tx.type === 'credit')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    const incomingAmount = latestCredit?.amount || 0;
+    const inflow = detectNewBulkInflow(financialData);
+    const incomingAmount = inflow.incomingAmount;
     const suggestedSavings = incomingAmount > 0 ? Math.max(0, Math.round(incomingAmount * 0.3)) : 0;
     return {
       incomingAmount,
@@ -125,7 +124,7 @@ export default function Home() {
         });
         if (!response.ok) return;
         const data = await response.json();
-        const shouldSuggest = Boolean(data?.shouldSuggest) && autoStashSuggestion.incomingAmount > 0 && autoStashSuggestion.suggestedSavings > 0;
+        const shouldSuggest = Boolean(data?.shouldSuggest);
         setShowAutoStash(shouldSuggest);
         setAutoStashAdvice({
           reasoning: data?.adviceMeta?.suggestion || data.message || autoStashSuggestion.reasoning,

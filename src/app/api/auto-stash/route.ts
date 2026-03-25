@@ -3,6 +3,7 @@ import { FinancialData } from '@/lib/types';
 import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
 import { insertAuditTrail, listRecentAiFeedback } from '@/lib/aiStore';
 import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
+import { detectNewBulkInflow } from '@/lib/inflowDetection';
 
 interface BillRow {
   id: string;
@@ -31,7 +32,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
     }
 
-    const { incomingAmount, suggestedSavings, financialData } = body;
+    const { financialData } = body;
+    const inflow = detectNewBulkInflow(financialData);
+    const incomingAmount = inflow.incomingAmount;
+    const suggestedSavings = incomingAmount > 0 ? Math.max(0, Math.round(incomingAmount * 0.3)) : 0;
+
+    if (!inflow.detected) {
+      return NextResponse.json({
+        message: 'No new bulk income inflow detected recently. Auto-Stash suggestion suppressed.',
+        shouldSuggest: false,
+        confidenceScore: 0,
+        citations: [],
+        reasoningTrace: 'No recent income-category bulk credit detected.',
+        usedPromptSnippet: 'Never make up numbers or transactions.',
+        adviceMeta: {
+          actionType: 'Auto-Stash',
+          suggestion: 'Suppressed: no new bulk inflow detected.',
+        },
+      });
+    }
     const supabase = getSupabaseAdmin();
     const [{ data: bills }, { data: goals }, feedback] = await Promise.all([
       supabase.from('upcoming_bills').select('id, name, amount, due_date').eq('user_id', userId).eq('status', 'pending').order('due_date', { ascending: true }).limit(10),
@@ -72,7 +91,7 @@ export async function POST(request: NextRequest) {
       normalized.includes('cannot verify') ||
       normalized.includes('cannot recommend') ||
       normalized.includes('not enough info');
-    const shouldSuggest = startsWithYes && !hasUncertainSignal && judged.confidenceScore >= 70;
+    const shouldSuggest = inflow.detected && startsWithYes && !hasUncertainSignal && judged.confidenceScore >= 70;
 
     await insertAuditTrail({
       user_id: userId,
