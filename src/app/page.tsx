@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { ChatInterface } from '@/components/ChatInterface';
 import { TrustScore } from '@/components/TrustScore';
@@ -69,7 +69,7 @@ export default function Home() {
     });
   };
 
-  const refreshFinancialData = async (force: boolean) => {
+  const refreshFinancialData = useCallback(async (force: boolean) => {
     if (!appUserId) return;
     const params = new URLSearchParams({
       userId: appUserId,
@@ -82,20 +82,20 @@ export default function Home() {
     if (data?.data) {
       setFinancialData(data.data as FinancialData);
     }
-  };
+  }, [appUserId]);
 
-  const requestConsentForPull = (force: boolean, background = false) => {
+  const requestConsentForPull = useCallback((force: boolean, background = false) => {
     setPendingRefresh({ force, background });
     setConsentOpen(true);
-  };
+  }, []);
 
-  const loadAuditTrail = async () => {
+  const loadAuditTrail = useCallback(async () => {
     if (!appUserId) return;
     const response = await fetch(`/api/audit?userId=${encodeURIComponent(appUserId)}`);
     if (!response.ok) return;
     const data = await response.json();
     setAuditRows(data.rows || []);
-  };
+  }, [appUserId]);
 
   useEffect(() => {
     requestConsentForPull(false, false);
@@ -103,13 +103,13 @@ export default function Home() {
       requestConsentForPull(false, true);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, [appUserId]);
+  }, [requestConsentForPull]);
 
   useEffect(() => {
     if (activeView === 'audit') {
       loadAuditTrail();
     }
-  }, [activeView]);
+  }, [activeView, loadAuditTrail]);
 
   useEffect(() => {
     const loadAutoStashAdvice = async () => {
@@ -140,7 +140,7 @@ export default function Home() {
       }
     };
     loadAutoStashAdvice();
-  }, [financialData]);
+  }, [financialData, autoStashSuggestion.incomingAmount, autoStashSuggestion.reasoning, autoStashSuggestion.suggestedSavings]);
 
   const handleSendMessage = async (content: string) => {
     // Add user message
