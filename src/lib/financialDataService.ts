@@ -3,22 +3,12 @@ import { getSupabaseAdmin } from '@/lib/supabaseServer';
 
 interface TransactionRow {
   id: string;
-  tx_type: 'credit' | 'debit';
+  type: 'credit' | 'debit';
   amount: string | number;
-  description: string | null;
-  category: string | null;
-  tx_date: string;
   narration: string | null;
-}
-
-function asCategory(value?: string): Transaction['category'] {
-  const allowed: Transaction['category'][] = [
-    'food', 'transport', 'airtime', 'entertainment', 'education', 'shopping', 'savings', 'income', 'transfer', 'other',
-  ];
-  if (value && allowed.includes(value as Transaction['category'])) {
-    return value as Transaction['category'];
-  }
-  return 'other';
+  balance: string | number | null;
+  category: string | null;
+  date: string;
 }
 
 export async function loadFinancialData(userId: string): Promise<FinancialData> {
@@ -27,9 +17,9 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
   const [{ data: txRows }, { data: goalRows }] = await Promise.all([
     supabase
       .from('transactions')
-      .select('id, tx_type, amount, description, category, tx_date, narration')
+      .select('id, type, amount, narration, balance, date, category')
       .eq('user_id', userId)
-      .order('tx_date', { ascending: false })
+      .order('date', { ascending: false })
       .limit(200),
     supabase
       .from('savings_goals')
@@ -42,12 +32,12 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
 
   const transactions: Transaction[] = ((txRows || []) as TransactionRow[]).map((row) => ({
     id: row.id,
-    type: row.tx_type,
+    type: row.type,
     amount: Number(row.amount || 0),
-    description: row.description || (row.tx_type === 'credit' ? 'Credit' : 'Debit'),
-    category: asCategory(row.category ?? undefined),
-    date: row.tx_date,
     narration: row.narration || '',
+    balance: row.balance === null ? null : Number(row.balance),
+    category: row.category ?? null,
+    date: row.date,
   }));
 
   const totalCredits = transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0);
@@ -87,11 +77,11 @@ export async function appendTransactionDelta(userId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
   await supabase.from('transactions').insert({
     user_id: userId,
-    tx_type: 'debit',
+    type: 'debit',
     amount: 750,
-    category: 'food',
-    description: 'Quick snack',
+    category: null,
     narration: 'POS PURCHASE - CAMPUS KIOSK',
-    tx_date: new Date().toISOString(),
+    balance: null,
+    date: new Date().toISOString(),
   });
 }

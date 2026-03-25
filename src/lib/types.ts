@@ -8,23 +8,11 @@ export interface Transaction {
   id: string;
   type: 'credit' | 'debit';
   amount: number;
-  description: string;
-  category: TransactionCategory;
-  date: string; // ISO date string
   narration: string;
+  balance: number | null;
+  category: string | null;
+  date: string; // ISO date string
 }
-
-export type TransactionCategory =
-  | 'food'
-  | 'transport'
-  | 'airtime'
-  | 'entertainment'
-  | 'education'
-  | 'shopping'
-  | 'savings'
-  | 'income'
-  | 'transfer'
-  | 'other';
 
 export interface FinancialData {
   balance: number;
@@ -143,6 +131,7 @@ export interface UserProfile {
   name: string;
   school?: string;
   allowanceCycleDays?: number;
+  bulkInflowMinAmount?: number;
 }
 
 export interface UpcomingBill {

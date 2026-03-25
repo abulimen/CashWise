@@ -4,7 +4,7 @@ import { callGemini } from '@/lib/geminiClient';
 export interface RetrievalContext {
   userId: string;
   retrievedAt: string;
-  transactions: Array<{ tx_id: string; date: string; amount: number; category: string; description: string; narration: string; type: 'debit' | 'credit' }>;
+  transactions: Array<{ id: string; type: 'debit' | 'credit'; amount: number; narration: string; balance: number | null; date: string; category: string | null }>;
   profile: UserProfile;
   upcomingBills: UpcomingBill[];
   savingsGoals: SavingsGoal[];
@@ -61,11 +61,11 @@ function sanitizeJudgeOutput(raw: string): { text: string; confidence: number } 
 
 function buildCitations(transactions: RetrievalContext['transactions']): DataCitation[] {
   return transactions.slice(0, 8).map((txn) => ({
-    txId: txn.tx_id,
+    txId: txn.id,
     date: txn.date,
     amount: txn.amount,
-    category: txn.category,
-    description: txn.description,
+    category: txn.category || 'uncategorized',
+    description: txn.narration || 'No narration',
   }));
 }
 
@@ -153,13 +153,13 @@ export function buildRetrievalContext(params: {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 25)
     .map((txn: Transaction) => ({
-      tx_id: txn.id,
-      date: txn.date,
-      amount: txn.amount,
-      category: txn.category,
-      description: txn.description,
-      narration: txn.narration,
+      id: txn.id,
       type: txn.type,
+      amount: txn.amount,
+      narration: txn.narration,
+      balance: txn.balance,
+      date: txn.date,
+      category: txn.category,
     }));
 
   return {

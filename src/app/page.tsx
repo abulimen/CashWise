@@ -32,13 +32,14 @@ export default function Home() {
   const [pendingRefresh, setPendingRefresh] = useState<{ force: boolean; background: boolean } | null>(null);
   const [activeView, setActiveView] = useState<'home' | 'audit'>('home');
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
+  const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
 
   // Real trust score calculated from financial data
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
 
   // Auto-stash suggestion
   const autoStashSuggestion: AutoStashSuggestion = useMemo(() => {
-    const inflow = detectNewBulkInflow(financialData);
+    const inflow = detectNewBulkInflow(financialData, bulkInflowMinAmount);
     const incomingAmount = inflow.incomingAmount;
     const suggestedSavings = incomingAmount > 0 ? Math.max(0, Math.round(incomingAmount * 0.3)) : 0;
     return {
@@ -48,7 +49,7 @@ export default function Home() {
       savingsGoal: financialData.savingsGoal,
       currentSavings: financialData.currentSavings,
     };
-  }, [financialData]);
+  }, [financialData, bulkInflowMinAmount]);
 
   const [autoStashAdvice, setAutoStashAdvice] = useState<Partial<AutoStashSuggestion>>({});
 
@@ -96,13 +97,21 @@ export default function Home() {
     setAuditRows(data.rows || []);
   }, [appUserId]);
 
+  const loadSettings = useCallback(async () => {
+    const response = await fetch('/api/settings');
+    if (!response.ok) return;
+    const data = await response.json();
+    setBulkInflowMinAmount(Number(data.bulkInflowMinAmount || 10000));
+  }, []);
+
   useEffect(() => {
+    loadSettings();
     requestConsentForPull(false, false);
     const interval = window.setInterval(() => {
       requestConsentForPull(false, true);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, [requestConsentForPull]);
+  }, [requestConsentForPull, loadSettings]);
 
   useEffect(() => {
     if (activeView === 'audit') {
@@ -237,6 +246,26 @@ export default function Home() {
           <button className="refresh-btn" onClick={() => requestConsentForPull(true, false)}>
             Refresh
           </button>
+        </div>
+        <div className="glass-card" style={{ padding: 'var(--space-3)' }}>
+          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
+            Bulk inflow minimum (₦)
+          </label>
+          <input
+            type="number"
+            min={1000}
+            step={500}
+            value={bulkInflowMinAmount}
+            className="chat-input"
+            onChange={(e) => setBulkInflowMinAmount(Number(e.target.value || 10000))}
+            onBlur={async () => {
+              await fetch('/api/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bulkInflowMinAmount }),
+              });
+            }}
+          />
         </div>
 
         {activeView === 'home' ? (

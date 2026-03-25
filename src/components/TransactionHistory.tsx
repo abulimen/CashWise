@@ -68,7 +68,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
               fontSize: '0.9rem',
               flexShrink: 0,
             }}>
-              {CATEGORY_ICONS[txn.category] || '📋'}
+              {CATEGORY_ICONS[txn.category || 'other'] || '📋'}
             </div>
 
             {/* Description */}
@@ -80,7 +80,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
-                {txn.description}
+                {txn.narration || 'No narration'}
               </div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
                 {formatDate(txn.date)}

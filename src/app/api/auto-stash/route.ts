@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { financialData } = body;
-    const inflow = detectNewBulkInflow(financialData);
+    const { data: profileData } = await getSupabaseAdmin()
+      .from('user_profiles')
+      .select('bulk_inflow_min_amount')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const bulkMin = Number(profileData?.bulk_inflow_min_amount || 10000);
+    const inflow = detectNewBulkInflow(financialData, bulkMin);
     const incomingAmount = inflow.incomingAmount;
     const suggestedSavings = incomingAmount > 0 ? Math.max(0, Math.round(incomingAmount * 0.3)) : 0;
 
@@ -43,7 +49,7 @@ export async function POST(request: NextRequest) {
         shouldSuggest: false,
         confidenceScore: 0,
         citations: [],
-        reasoningTrace: 'No recent income-category bulk credit detected.',
+        reasoningTrace: `No recent credit >= ₦${bulkMin.toLocaleString('en-NG')} detected in the last 24 hours.`,
         usedPromptSnippet: 'Never make up numbers or transactions.',
         adviceMeta: {
           actionType: 'Auto-Stash',
