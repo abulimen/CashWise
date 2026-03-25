@@ -106,7 +106,7 @@ export default function Home() {
         if (!response.ok) return;
         const data = await response.json();
         setAutoStashAdvice({
-          reasoning: data.message || autoStashSuggestion.reasoning,
+          reasoning: data?.adviceMeta?.suggestion || data.message || autoStashSuggestion.reasoning,
           confidenceScore: data.confidenceScore,
           citations: data.citations,
           reasoningTrace: data.reasoningTrace,

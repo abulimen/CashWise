@@ -34,6 +34,31 @@ function clampConfidence(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function sanitizeJudgeOutput(raw: string): { text: string; confidence: number } {
+  const confidenceMatch =
+    raw.match(/confidence\s*score\s*[:\-]?\s*(\d{1,3})/i) ||
+    raw.match(/(\d{1,3})\s*\/\s*100/i);
+  const confidence = clampConfidence(confidenceMatch ? Number(confidenceMatch[1]) : 0);
+
+  let text = raw
+    .replace(/[*_`]/g, '')
+    .replace(/\n?confidence\s*score\s*[:\-]?\s*\d{1,3}(?:\s*\/\s*100)?\s*$/i, '')
+    .trim();
+
+  const correctedMatch = text.match(/corrected response\s*:\s*([\s\S]*)/i);
+  if (correctedMatch?.[1]) {
+    text = correctedMatch[1].trim();
+  }
+
+  text = text
+    .replace(/^no\.\s*correction:\s*/i, 'No. ')
+    .replace(/^\s*correction:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return { text, confidence };
+}
+
 function buildCitations(transactions: RetrievalContext['transactions']): DataCitation[] {
   return transactions.slice(0, 8).map((txn) => ({
     txId: txn.tx_id,
@@ -94,9 +119,9 @@ Tasks:
     }
   );
 
-  const confidenceMatch = judged.match(/confidence\s*score\s*[:\-]?\s*(\d{1,3})/i) || judged.match(/(\d{1,3})\s*\/\s*100/i);
-  const confidenceScore = clampConfidence(confidenceMatch ? Number(confidenceMatch[1]) : 0);
-  const finalResponse = judged.replace(/\n?confidence\s*score\s*[:\-]?\s*\d{1,3}(?:\s*\/\s*100)?\s*$/i, '').trim();
+  const parsed = sanitizeJudgeOutput(judged);
+  const confidenceScore = parsed.confidence;
+  const finalResponse = parsed.text;
 
   return {
     finalResponse,
