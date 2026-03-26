@@ -43,22 +43,42 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
 
   const send = async () => {
     if (!input.trim()) return;
+    const wasAwaitingFollowUp = awaitingFollowUp;
     setLoading(true);
     try {
       const response = await fetch('/api/onboarding/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, profileDraft: draft }),
+        body: JSON.stringify({
+          message: input,
+          profileDraft: draft,
+          questionIndex,
+          activeQuestion: QUESTIONS[questionIndex],
+        }),
       });
       if (!response.ok) return;
       const data = await response.json();
       setDraft(data.profileDraft || {});
       setSections(data.sections || []);
-      const nextFollowUp = data.followUpQuestion || '';
-      setFollowUp(nextFollowUp);
-      if (nextFollowUp) {
+      const nextFollowUp = String(data.followUpQuestion || '').trim();
+
+      // Loop guard: after a user answers one follow-up for a question, always advance.
+      if (wasAwaitingFollowUp) {
+        setFollowUp('');
+        setAwaitingFollowUp(false);
+        setQuestionIndex((prev) => {
+          const next = prev + 1;
+          if (next >= QUESTIONS.length) {
+            setReadyForReview(true);
+            return prev;
+          }
+          return next;
+        });
+      } else if (nextFollowUp) {
+        setFollowUp(nextFollowUp);
         setAwaitingFollowUp(true);
       } else {
+        setFollowUp('');
         setAwaitingFollowUp(false);
         setQuestionIndex((prev) => {
           const next = prev + 1;

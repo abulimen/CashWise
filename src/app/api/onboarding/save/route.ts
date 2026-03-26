@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { encryptWithDekBase64, generateDekBase64, wrapDekForUser } from '@/lib/secureCache';
 import { insertAuditTrail } from '@/lib/aiStore';
-import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
+import { saveOnboardingProfile } from '@/lib/onboardingStore';
+import { getAppUserId } from '@/lib/supabaseServer';
 
 export async function POST(request: NextRequest) {
   const userId = getAppUserId();
@@ -14,22 +14,14 @@ export async function POST(request: NextRequest) {
     disagreementReason?: string;
   };
 
-  const dek = await generateDekBase64();
-  const encrypted = await encryptWithDekBase64(body.profileDraft, dek);
-  const wrappedDek = await wrapDekForUser(userId, dek);
-
-  const supabase = getSupabaseAdmin();
-  await supabase.from('user_onboarding').upsert({
-    user_id: userId,
-    consent_given: true,
-    encrypted_profile_blob: encrypted.encryptedBlob,
-    wrapped_dek: wrappedDek,
-    iv: encrypted.iv,
-    confidence_overall: body.confidenceOverall,
-    onboarding_completed: body.accepted,
-    profile_version: 1,
-    updated_at: new Date().toISOString(),
-  });
+  if (body.accepted) {
+    await saveOnboardingProfile({
+      userId,
+      profileDraft: body.profileDraft,
+      confidenceOverall: body.confidenceOverall,
+      onboardingCompleted: true,
+    });
+  }
 
   await insertAuditTrail({
     user_id: userId,

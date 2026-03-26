@@ -3,11 +3,9 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { ChatInterface } from '@/components/ChatInterface';
-import { TrustScore } from '@/components/TrustScore';
 import { AutoStash } from '@/components/AutoStash';
 import { TransactionHistory } from '@/components/TransactionHistory';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
-import { calculateTrustScore } from '@/lib/trustScore';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
 import { detectNewBulkInflow } from '@/lib/inflowDetection';
@@ -37,9 +35,6 @@ export default function Home() {
   useEffect(() => {
     financialDataRef.current = financialData;
   }, [financialData]);
-
-  // Real trust score calculated from financial data
-  const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
 
   // Auto-stash suggestion
   const autoStashSuggestion: AutoStashSuggestion = useMemo(() => {
@@ -201,6 +196,7 @@ export default function Home() {
         reasoningTrace: data.reasoningTrace,
         usedPromptSnippet: data.usedPromptSnippet,
         adviceMeta: data.adviceMeta,
+        pendingProfileUpdate: data.pendingProfileUpdate,
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch {
@@ -287,8 +283,6 @@ export default function Home() {
         {activeView === 'home' ? (
           <>
             <FinancialDashboard data={financialData} />
-
-            <TrustScore result={trustScore} />
 
             {showAutoStash && (
               <AutoStash

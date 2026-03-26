@@ -14,6 +14,13 @@ interface TransactionRow {
   description?: string | null;
 }
 
+function normalizeTxType(value?: string): 'credit' | 'debit' {
+  const v = String(value || '').toLowerCase().trim();
+  if (v === 'credit') return 'credit';
+  if (v === 'debit') return 'debit';
+  return 'debit';
+}
+
 export async function loadFinancialData(userId: string): Promise<FinancialData> {
   const supabase = getSupabaseAdmin();
 
@@ -32,7 +39,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
   // Primary: Mono-shaped schema
   const monoQuery = await supabase
     .from('transactions')
-    .select('id, type, amount, narration, balance, date, category')
+    .select('id, type, tx_type, amount, narration, balance, date, tx_date, category, description')
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .limit(200);
@@ -55,7 +62,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
 
   const transactions: Transaction[] = txRows.map((row) => ({
     id: row.id,
-    type: row.type || row.tx_type || 'debit',
+    type: normalizeTxType(row.type || row.tx_type),
     amount: Number(row.amount || 0),
     narration: row.narration || row.description || '',
     balance: row.balance === null ? null : Number(row.balance),

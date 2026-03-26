@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ChatRequest, ChatResponse, AIRecommendation, DataCitation } from '@/lib/types';
+import { ChatRequest, ChatResponse, AIRecommendation, DataCitation, PendingProfileUpdate } from '@/lib/types';
 import { parseAmountFromMessage, generateDecision } from '@/lib/decisionEngine';
 import { buildRetrievalContext, generateJudgedAdvice } from '@/lib/trustPipeline';
 import { insertAuditTrail, listRecentAiFeedback } from '@/lib/aiStore';
 import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
+import { deepMergeProfile, loadOnboardingProfile, saveOnboardingProfile } from '@/lib/onboardingStore';
+import { proposeProfileUpdateFromChat } from '@/lib/onboarding';
 
 interface BillRow {
   id: string;
@@ -20,6 +22,28 @@ interface GoalRow {
   due_date: string | null;
 }
 
+function encodeUpdateToken(payload: { patch: Record<string, unknown>; summary: string; confidence: number }): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+}
+
+function decodeUpdateToken(token: string): { patch: Record<string, unknown>; summary: string; confidence: number } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as {
+      patch?: Record<string, unknown>;
+      summary?: string;
+      confidence?: number;
+    };
+    if (!parsed.patch || typeof parsed.patch !== 'object') return null;
+    return {
+      patch: parsed.patch,
+      summary: String(parsed.summary || 'Profile updated'),
+      confidence: Math.max(0, Math.min(100, Math.round(Number(parsed.confidence || 0)))),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
@@ -27,6 +51,78 @@ export async function POST(request: NextRequest) {
     const userId = getAppUserId();
     if (!userId) {
       return NextResponse.json({ message: 'CASHWISE_DEMO_USER_ID is not set.' }, { status: 400 });
+    }
+
+    const confirmMatch = message.match(/^\/confirm-profile-update\s+(.+)$/i);
+    if (confirmMatch?.[1]) {
+      const decoded = decodeUpdateToken(confirmMatch[1].trim());
+      if (!decoded) {
+        return NextResponse.json({ message: 'I could not validate that profile update token. Please request the update again.' } satisfies ChatResponse);
+      }
+      const existing = await loadOnboardingProfile(userId);
+      const mergedProfile = deepMergeProfile(existing.profileDraft, decoded.patch);
+      await saveOnboardingProfile({
+        userId,
+        profileDraft: mergedProfile,
+        confidenceOverall: Math.max(existing.confidenceOverall, decoded.confidence),
+        onboardingCompleted: existing.onboardingCompleted,
+      });
+      const confirmation = `Done. I saved that preference update to your profile.\n\nUpdated profile area: ${decoded.summary}`;
+      await insertAuditTrail({
+        user_id: userId,
+        timestamp: new Date().toISOString(),
+        action: 'Chat',
+        suggestion: confirmation,
+        user_decision: 'Accepted',
+        confidence: decoded.confidence,
+      });
+      return NextResponse.json({
+        message: confirmation,
+        confidenceScore: decoded.confidence,
+        adviceMeta: { actionType: 'Chat', suggestion: confirmation, decision: 'Accepted' },
+      } satisfies ChatResponse);
+    }
+
+    const profileForUpdate = await loadOnboardingProfile(userId);
+    const updateDraft = await proposeProfileUpdateFromChat({
+      userMessage: message,
+      currentProfile: profileForUpdate.profileDraft,
+    });
+    if (updateDraft.isUpdateCommand) {
+      if (updateDraft.followUpQuestion) {
+        return NextResponse.json({
+          message: `I can update your profile, but I need one clarification first: ${updateDraft.followUpQuestion}`,
+          confidenceScore: updateDraft.confidence,
+          adviceMeta: {
+            actionType: 'Chat',
+            suggestion: 'Profile edit requested, clarification needed.',
+          },
+        } satisfies ChatResponse);
+      }
+      if (Object.keys(updateDraft.patch).length === 0) {
+        return NextResponse.json({
+          message: "I heard a profile edit request, but I couldn't extract an exact value to save. Please rephrase like: \"Update my Spotify to ₦1,500 monthly.\"",
+          confidenceScore: updateDraft.confidence,
+        } satisfies ChatResponse);
+      }
+      const pendingProfileUpdate: PendingProfileUpdate = {
+        token: encodeUpdateToken({
+          patch: updateDraft.patch,
+          summary: updateDraft.summary,
+          confidence: updateDraft.confidence,
+        }),
+        summary: updateDraft.summary,
+        confidence: updateDraft.confidence,
+      };
+      return NextResponse.json({
+        message: `Proposed profile update: ${updateDraft.summary}\n\nPlease confirm before I save this.`,
+        confidenceScore: updateDraft.confidence,
+        pendingProfileUpdate,
+        adviceMeta: {
+          actionType: 'Chat',
+          suggestion: `Pending profile update: ${updateDraft.summary}`,
+        },
+      } satisfies ChatResponse);
     }
 
     // Try to parse a purchase amount from the message

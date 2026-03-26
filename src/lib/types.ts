@@ -39,6 +39,7 @@ export interface ChatMessage {
   reasoningTrace?: string;
   usedPromptSnippet?: string;
   adviceMeta?: AdviceMeta;
+  pendingProfileUpdate?: PendingProfileUpdate;
 }
 
 export interface AIRecommendation {
@@ -119,11 +120,18 @@ export interface ChatResponse {
   reasoningTrace?: string;
   usedPromptSnippet?: string;
   adviceMeta?: AdviceMeta;
+  pendingProfileUpdate?: PendingProfileUpdate;
+}
+
+export interface PendingProfileUpdate {
+  token: string;
+  summary: string;
+  confidence: number;
 }
 
 export interface FinancialDataResponse {
   data: FinancialData;
-  source: 'mock' | 'mono';
+  source: 'mono';
 }
 
 export interface UserProfile {

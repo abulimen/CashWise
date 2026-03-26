@@ -58,6 +58,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, o
   };
 
   const hasAdvice = (msg: ChatMessage) => Boolean(msg.recommendation || /\d/.test(msg.content));
+  const hasPendingUpdate = (msg: ChatMessage) => Boolean(msg.pendingProfileUpdate?.token);
 
   return (
     <div className="chat-panel">
@@ -137,6 +138,22 @@ export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, o
                         Accept / Sounds good
                       </button>
                       <button className="feedback-btn feedback-btn-disagree" onClick={() => setFeedbackTarget(msg)}>Disagree → Tell me why</button>
+                    </div>
+                  )}
+                  {msg.role === 'assistant' && hasPendingUpdate(msg) && (
+                    <div className="feedback-actions">
+                      <button
+                        className="feedback-btn feedback-btn-accept"
+                        onClick={() => onSendMessage(`/confirm-profile-update ${msg.pendingProfileUpdate?.token || ''}`)}
+                      >
+                        Confirm update
+                      </button>
+                      <button
+                        className="feedback-btn feedback-btn-disagree"
+                        onClick={() => onSendMessage('Cancel that profile update.')}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   )}
                   {msg.role === 'assistant' && (
