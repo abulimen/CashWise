@@ -9,15 +9,11 @@ import { TrustScore } from '@/components/TrustScore';
 
 interface HomeScreenProps {
   financialData: FinancialData;
-  onNavigate: (screen: 'home' | 'copilot' | 'stash' | 'profile' | 'audit') => void;
+  onNavigate: (screen: 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit') => void;
   aiSnippet?: string;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  food: '🍽️', transport: '🚗', airtime: '📱',
-  entertainment: '🎬', education: '📚', shopping: '🛍️',
-  savings: '🏦', income: '💰', transfer: '↔️', other: '📋',
-};
+import { Bell, Plus, ArrowRightLeft, BarChart3, TrendingUp, Calendar, PiggyBank, Sparkles } from 'lucide-react';
 
 export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenProps) {
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
@@ -36,11 +32,11 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
       {/* Top bar */}
       <div className="top-bar">
         <div>
-          <div className="top-bar-greeting">Hello, Student 👋</div>
+          <div className="top-bar-greeting">Hello, Student</div>
           <div className="top-bar-name">My Finance</div>
         </div>
         <div className="top-bar-actions">
-          <button className="notif-btn" aria-label="Notifications">🔔</button>
+          <button className="notif-btn" aria-label="Notifications"><Bell size={18} /></button>
           <div className="top-bar-avatar">T</div>
         </div>
       </div>
@@ -57,10 +53,10 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
         </div>
         <div className="balance-hero-actions">
           <button className="hero-action-btn hero-action-btn-primary" onClick={() => onNavigate('stash')}>
-            <span>＋</span> Add Money
+            <Plus size={16} /> Add Money
           </button>
           <button className="hero-action-btn hero-action-btn-outline" onClick={() => onNavigate('copilot')}>
-            <span>⇄</span> Transfer
+            <ArrowRightLeft size={16} /> Transfer
           </button>
         </div>
       </div>
@@ -68,22 +64,22 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
       {/* Stats grid */}
       <div className="stats-row anim-card-2">
         <div className="stat-card">
-          <div className="stat-icon-wrap">📊</div>
+          <div className="stat-icon-wrap"><BarChart3 size={20} /></div>
           <div className="stat-val">{formatNaira(financialData.dailyBudget)}</div>
           <div className="stat-lbl">Daily Budget</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon-wrap">🔥</div>
+          <div className="stat-icon-wrap"><TrendingUp size={20} /></div>
           <div className="stat-val">{formatNaira(financialData.averageDailySpending)}</div>
           <div className="stat-lbl">Avg Spend</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon-wrap">📅</div>
+          <div className="stat-icon-wrap"><Calendar size={20} /></div>
           <div className="stat-val">{financialData.daysRemaining}</div>
           <div className="stat-lbl">Days Left</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon-wrap">💰</div>
+          <div className="stat-icon-wrap"><PiggyBank size={20} /></div>
           <div className="stat-val">{formatNaira(financialData.currentSavings)}</div>
           <div className="stat-lbl">Saved</div>
         </div>
@@ -108,7 +104,7 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
           <div className="autostash-card" style={{ margin: '0 16px' }}>
             <div className="autostash-hdr">
               <div className="autostash-hdr-left">
-                <div className="autostash-title">Auto-Stash</div>
+                <div className="autostash-title">{financialData.savingsGoalTitle || 'Savings Goal'}</div>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>
                 {Math.round((financialData.currentSavings / Math.max(1, financialData.savingsGoal)) * 100)}%
@@ -132,8 +128,8 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
                 <div className="autostash-goal">of {formatNaira(financialData.savingsGoal)} goal</div>
               </div>
             </div>
-            <div className="autostash-tip">
-              ✦ &quot;Stashing 10% of every lunch spend helps you reach goals 3x faster!&quot;
+            <div className="autostash-tip" style={{ alignItems: 'center' }}>
+              <Sparkles size={14} /> &quot;Stashing 10% of every lunch spend helps you reach goals 3x faster!&quot;
             </div>
           </div>
         </div>

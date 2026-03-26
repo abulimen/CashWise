@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrustScoreResult } from '@/lib/types';
+import { Award, TrendingUp } from 'lucide-react';
 
 interface TrustScoreProps {
   result: TrustScoreResult;
@@ -38,7 +39,7 @@ export function TrustScore({ result }: TrustScoreProps) {
       {/* Compact row view */}
       <div className="trust-card-row">
         <div className="trust-badge">
-          <div className="trust-badge-icon">🏅</div>
+          <div className="trust-badge-icon"><Award size={22} /></div>
           <div>
             <div className="trust-badge-label">Trust Score</div>
             <div className="trust-badge-sub">Building credit</div>
@@ -46,8 +47,8 @@ export function TrustScore({ result }: TrustScoreProps) {
         </div>
         <div className="trust-score-num">
           <div className="trust-score-num-val">{result.overall}</div>
-          <div className="trust-score-num-verdict">
-            ↗ {result.label}
+          <div className="trust-score-num-verdict" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <TrendingUp size={14} /> {result.label}
           </div>
         </div>
       </div>

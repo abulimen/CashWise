@@ -22,6 +22,7 @@ export interface FinancialData {
   averageDailySpending: number; // calculated from recent transactions
   savingsGoal: number;
   currentSavings: number;
+  savingsGoalTitle?: string;
   transactions: Transaction[];
   lastUpdated: string;
 }

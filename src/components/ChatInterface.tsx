@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { ChatMessage } from '@/lib/types';
 import { RecommendationCard } from '@/components/RecommendationCard';
+import { MessageSquare, Send } from 'lucide-react';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
@@ -96,7 +97,7 @@ export function ChatInterface({
       <div className="chat-messages">
         {isEmpty ? (
           <div className="chat-welcome">
-            <div className="chat-welcome-icon">💬</div>
+            <div className="chat-welcome-icon"><MessageSquare size={48} /></div>
             <div className="chat-welcome-title">Ask me anything about your money</div>
             <div className="chat-welcome-sub">
               I&apos;ll show you exactly how a purchase affects your budget — with clear reasoning you can check yourself.
@@ -230,7 +231,7 @@ export function ChatInterface({
             id="chat-send-btn"
             aria-label="Send message"
           >
-            ↑
+            <Send size={18} />
           </button>
         </div>
         <div className="disclaimer-line">CashWise is an AI advisor. We take no liability for financial decisions.</div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Send } from 'lucide-react';
 
 interface OnboardingFlowProps {
   onCompleted: () => void;
@@ -154,7 +155,7 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
           placeholder={awaitingFollowUp ? 'Answer the clarifying question naturally' : 'Type your answer naturally'}
           disabled={readyForReview}
         />
-        <button className="chat-send-btn" onClick={send} disabled={loading || readyForReview}>↑</button>
+        <button className="chat-send-btn" onClick={send} disabled={loading || readyForReview}><Send size={18} /></button>
       </div>
       {followUp && !readyForReview && <div className="citation-panel">Clarifying question: {followUp}</div>}
       {!readyForReview && sections.some((s) => s.confidence < 30) && (

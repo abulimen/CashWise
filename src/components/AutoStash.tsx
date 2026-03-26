@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AutoStashSuggestion } from '@/lib/types';
 import { formatNaira } from '@/lib/currency';
+import { Check } from 'lucide-react';
 
 interface AutoStashProps {
   suggestion: Partial<AutoStashSuggestion>;
@@ -20,6 +21,14 @@ export function AutoStash({ suggestion, onAccept, onDecline, onSubmitFeedback }:
   const incoming = suggestion.incomingAmount ?? 0;
   const saving = suggestion.suggestedSavings ?? 0;
   const pct = incoming > 0 ? Math.round((saving / incoming) * 100) : 0;
+  const confScore = typeof suggestion.confidenceScore === 'number' ? suggestion.confidenceScore : null;
+  const confClass = confScore === null
+    ? ''
+    : confScore >= 90
+      ? 'autostash-confidence-good'
+      : confScore >= 70
+        ? 'autostash-confidence-mid'
+        : 'autostash-confidence-low';
 
   return (
     <div className="autostash-proposal-card" id="autostash-proposal">
@@ -32,6 +41,11 @@ export function AutoStash({ suggestion, onAccept, onDecline, onSubmitFeedback }:
       <div className="autostash-reasoning">
         {suggestion.reasoning ?? 'Based on your goals and recent spending patterns.'}
       </div>
+      {confScore !== null && (
+        <div className={`autostash-confidence ${confClass}`}>
+          Confidence: {confScore}/100
+        </div>
+      )}
 
       {/* Decision provenance */}
       <details className="xai-accordion" open={showProvenance} onToggle={(e) => setShowProvenance((e.target as HTMLDetailsElement).open)}>
@@ -46,7 +60,7 @@ export function AutoStash({ suggestion, onAccept, onDecline, onSubmitFeedback }:
 
       <div className="autostash-actions" style={{ marginTop: 16 }}>
         <button className="btn btn-primary" onClick={onAccept} id="autostash-accept-btn">
-          ✓ Stash it
+          <Check size={16} /> Stash it
         </button>
         <button className="btn btn-outline" onClick={() => setShowWhyModal(true)} id="autostash-decline-btn">
           No, here&apos;s why…

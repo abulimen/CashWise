@@ -4,6 +4,7 @@ import { FinancialData, AutoStashSuggestion } from '@/lib/types';
 import { formatNaira } from '@/lib/currency';
 import { AutoStash } from '@/components/AutoStash';
 import { TransactionHistory } from '@/components/TransactionHistory';
+import { Landmark, Sparkles } from 'lucide-react';
 
 interface StashScreenProps {
   financialData: FinancialData;
@@ -38,10 +39,10 @@ export function StashScreen({
         <div className="savings-goal-card anim-card-1">
           <div className="autostash-hdr">
             <div className="autostash-hdr-left">
-              <div className="autostash-icon">🏦</div>
+              <div className="autostash-icon"><Landmark size={20} /></div>
               <div>
-                <div className="autostash-title">Auto-Stash Goal</div>
-                <div className="autostash-sub">Monthly Stash Target</div>
+                <div className="autostash-title">{financialData.savingsGoalTitle || 'Savings Goal'}</div>
+                <div className="autostash-sub">Current active goal</div>
               </div>
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-primary)' }}>{pct}%</div>
@@ -56,8 +57,8 @@ export function StashScreen({
             </div>
             <div style={{ fontSize: 13, color: 'var(--color-primary)', fontWeight: 700 }}>{pct}% Achieved</div>
           </div>
-          <div className="autostash-tip">
-            ✦ &quot;Consistent small stashes beat big irregular ones — keep it going!&quot;
+          <div className="autostash-tip" style={{ alignItems: 'center' }}>
+            <Sparkles size={14} /> &quot;Consistent small stashes beat big irregular ones — keep it going!&quot;
           </div>
         </div>
 

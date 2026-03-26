@@ -1,18 +1,22 @@
 'use client';
 
-type Screen = 'home' | 'copilot' | 'stash' | 'profile' | 'audit';
+import { Home, MessageSquare, Landmark, User, ShieldCheck, Settings, ReceiptText } from 'lucide-react';
+import { ReactNode } from 'react';
+
+type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit';
 
 interface NavItem {
   id: Screen;
-  icon: string;
+  icon: ReactNode;
   label: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'home',    icon: '🏠', label: 'Home' },
-  { id: 'copilot', icon: '💬', label: 'Copilot' },
-  { id: 'stash',   icon: '🏦', label: 'Stash' },
-  { id: 'profile', icon: '👤', label: 'Profile' },
+  { id: 'home',    icon: <Home size={22} />, label: 'Home' },
+  { id: 'copilot', icon: <MessageSquare size={22} />, label: 'Copilot' },
+  { id: 'stash',   icon: <Landmark size={22} />, label: 'Stash' },
+  { id: 'bills',   icon: <ReceiptText size={22} />, label: 'Bills' },
+  { id: 'profile', icon: <User size={22} />, label: 'Profile' },
 ];
 
 interface BottomNavProps {
@@ -40,11 +44,12 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
 }
 
 const SIDEBAR_ITEMS: NavItem[] = [
-  { id: 'home',    icon: '🏠', label: 'Dashboard' },
-  { id: 'copilot', icon: '💬', label: 'Chat' },
-  { id: 'stash',   icon: '🏦', label: 'Stash' },
-  { id: 'audit',   icon: '📋', label: 'Score' },
-  { id: 'profile', icon: '⚙️',  label: 'Settings' },
+  { id: 'home',    icon: <Home size={20} />, label: 'Dashboard' },
+  { id: 'copilot', icon: <MessageSquare size={20} />, label: 'Chat' },
+  { id: 'stash',   icon: <Landmark size={20} />, label: 'Stash' },
+  { id: 'bills',   icon: <ReceiptText size={20} />, label: 'Bills' },
+  { id: 'audit',   icon: <ShieldCheck size={20} />, label: 'Score' },
+  { id: 'profile', icon: <Settings size={20} />,  label: 'Settings' },
 ];
 
 interface SidebarProps {

@@ -27,7 +27,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
   const [{ data: goalRows }] = await Promise.all([
     supabase
       .from('savings_goals')
-      .select('target_amount, current_amount')
+      .select('title, target_amount, current_amount')
       .eq('user_id', userId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -85,6 +85,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
     : 0;
 
   const goal = goalRows?.[0];
+  const savingsGoalTitle = goal?.title ? String(goal.title) : undefined;
   const savingsGoal = Number(goal?.target_amount || 0);
   const currentSavings = Number(goal?.current_amount || 0);
 
@@ -98,6 +99,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
     averageDailySpending,
     savingsGoal,
     currentSavings,
+    savingsGoalTitle,
     transactions,
     lastUpdated: new Date().toISOString(),
   };

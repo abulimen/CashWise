@@ -1,16 +1,25 @@
 'use client';
 
 import { Transaction } from '@/lib/types';
+import { ReactNode } from 'react';
+import { Utensils, Car, Smartphone, Film, GraduationCap, ShoppingBag, Landmark, Wallet, ArrowRightLeft, CreditCard } from 'lucide-react';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
   showAll?: boolean;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  food: '🍽️', transport: '🚗', airtime: '📱',
-  entertainment: '🎬', education: '📚', shopping: '🛍️',
-  savings: '🏦', income: '💰', transfer: '↔️', other: '📋',
+const CATEGORY_ICONS: Record<string, ReactNode> = {
+  food: <Utensils size={18} />, 
+  transport: <Car size={18} />, 
+  airtime: <Smartphone size={18} />,
+  entertainment: <Film size={18} />, 
+  education: <GraduationCap size={18} />, 
+  shopping: <ShoppingBag size={18} />,
+  savings: <Landmark size={18} />, 
+  income: <Wallet size={18} />, 
+  transfer: <ArrowRightLeft size={18} />, 
+  other: <CreditCard size={18} />,
 };
 
 function groupByDate(transactions: Transaction[]) {
@@ -61,7 +70,7 @@ export function TransactionHistory({ transactions, showAll = false }: Transactio
             {txns.map((txn) => (
               <div key={txn.id} className="txn-item">
                 <div className="txn-icon">
-                  {CATEGORY_ICONS[txn.category || 'other'] ?? '📋'}
+                  {CATEGORY_ICONS[txn.category || 'other'] ?? <CreditCard size={18} />}
                 </div>
                 <div className="txn-info">
                   <div className="txn-name">{txn.narration || 'No narration'}</div>

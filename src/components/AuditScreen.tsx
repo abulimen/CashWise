@@ -1,5 +1,7 @@
 'use client';
 
+import { ClipboardList } from 'lucide-react';
+
 interface AuditRow {
   timestamp: string;
   action: string;
@@ -30,7 +32,7 @@ export function AuditScreen({ rows, onRefresh }: AuditScreenProps) {
         <div style={{ background: 'var(--color-bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
           {rows.length === 0 ? (
             <div className="audit-empty">
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><ClipboardList size={40} color="var(--color-text-muted)" /></div>
               <div>No AI actions recorded yet.</div>
               <div style={{ fontSize: 12, marginTop: 4 }}>Actions will appear here once you start chatting.</div>
             </div>

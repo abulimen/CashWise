@@ -5,13 +5,14 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { HomeScreen } from '@/components/HomeScreen';
 import { StashScreen } from '@/components/StashScreen';
 import { AuditScreen } from '@/components/AuditScreen';
+import { BillsScreen } from '@/components/BillsScreen';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { BottomNav, Sidebar } from '@/components/Nav';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
 import { detectNewBulkInflow } from '@/lib/inflowDetection';
 
-type Screen = 'home' | 'copilot' | 'stash' | 'profile' | 'audit';
+type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit';
 
 const DEFAULT_FIN_DATA: FinancialData = {
   balance: 0,
@@ -21,6 +22,7 @@ const DEFAULT_FIN_DATA: FinancialData = {
   averageDailySpending: 0,
   savingsGoal: 0,
   currentSavings: 0,
+  savingsGoalTitle: undefined,
   transactions: [],
   lastUpdated: new Date().toISOString(),
 };
@@ -34,6 +36,7 @@ export default function Home() {
   const [showAutoStash, setShowAutoStash] = useState(false);
   const [autoStashAdvice, setAutoStashAdvice] = useState<Partial<AutoStashSuggestion>>({});
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
+  const [bills, setBills] = useState<Array<{ id: string; name: string; amount: number; dueDate: string; status: string }>>([]);
   const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true); // default true — only show if API says otherwise
   const [aiSnippet, setAiSnippet] = useState<string | undefined>();
@@ -90,6 +93,18 @@ export default function Home() {
       const data = await res.json();
       setAuditRows(data.rows || []);
     } catch { /* silent */ }
+  }, [appUserId]);
+
+  const loadBills = useCallback(async () => {
+    if (!appUserId) return;
+    try {
+      const res = await fetch('/api/bills');
+      if (!res.ok) return;
+      const data = await res.json();
+      setBills(data.bills || []);
+    } catch {
+      // silent
+    }
   }, [appUserId]);
 
   // ── Load settings ──
@@ -149,10 +164,11 @@ export default function Home() {
     }
     loadSettings();
     loadOnboardingState();
+    loadBills();
     refreshFinancialData(false);
     const interval = window.setInterval(() => refreshFinancialData(false), 120_000);
     return () => window.clearInterval(interval);
-  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadOnboardingState]);
+  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadOnboardingState, loadBills]);
 
   useEffect(() => {
     if (screen === 'audit') loadAuditTrail();
@@ -288,6 +304,8 @@ export default function Home() {
             </div>
           </div>
         );
+      case 'bills':
+        return <BillsScreen bills={bills} />;
       case 'audit':
         return (
           <AuditScreen
