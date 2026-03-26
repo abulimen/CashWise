@@ -95,30 +95,3 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
     lastUpdated: new Date().toISOString(),
   };
 }
-
-export async function appendTransactionDelta(userId: string): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const monoInsert = await supabase.from('transactions').insert({
-    user_id: userId,
-    type: 'debit',
-    amount: 750,
-    category: 'other',
-    narration: 'POS PURCHASE - CAMPUS KIOSK',
-    balance: null,
-    date: new Date().toISOString(),
-  });
-  if (monoInsert.error) {
-    const legacyInsert = await supabase.from('transactions').insert({
-      user_id: userId,
-      tx_type: 'debit',
-      amount: 750,
-      category: 'other',
-      narration: 'POS PURCHASE - CAMPUS KIOSK',
-      description: null,
-      tx_date: new Date().toISOString(),
-    });
-    if (legacyInsert.error) {
-      throw new Error(legacyInsert.error.message);
-    }
-  }
-}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { FinancialDataResponse } from '@/lib/types';
 import { decryptWithDekBase64, encryptWithDekBase64, unwrapDekForUser } from '@/lib/secureCache';
 import { getAppUserId, getSupabaseAdmin } from '@/lib/supabaseServer';
-import { appendTransactionDelta, loadFinancialData } from '@/lib/financialDataService';
+import { loadFinancialData } from '@/lib/financialDataService';
 
 const TWO_MINUTES_MS = 2 * 60 * 1000;
 
@@ -52,9 +52,6 @@ export async function GET(request: Request) {
       );
     }
 
-    if (hasConsent) {
-      await appendTransactionDelta(userId);
-    }
     const merged = await loadFinancialData(userId);
 
     const reEncrypted = await encryptWithDekBase64(merged, dekBase64);
