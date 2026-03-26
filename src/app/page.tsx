@@ -7,6 +7,7 @@ import { TrustScore } from '@/components/TrustScore';
 import { AutoStash } from '@/components/AutoStash';
 import { TransactionHistory } from '@/components/TransactionHistory';
 import { ConsentModal } from '@/components/ConsentModal';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { calculateTrustScore } from '@/lib/trustScore';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
@@ -33,6 +34,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<'home' | 'audit'>('home');
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
   const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
   // Real trust score calculated from financial data
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
@@ -104,14 +106,22 @@ export default function Home() {
     setBulkInflowMinAmount(Number(data.bulkInflowMinAmount || 10000));
   }, []);
 
+  const loadOnboardingState = useCallback(async () => {
+    const response = await fetch('/api/onboarding/profile');
+    if (!response.ok) return;
+    const data = await response.json();
+    setOnboardingCompleted(Boolean(data?.onboardingCompleted));
+  }, []);
+
   useEffect(() => {
     loadSettings();
+    loadOnboardingState();
     requestConsentForPull(false, false);
     const interval = window.setInterval(() => {
       requestConsentForPull(false, true);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, [requestConsentForPull, loadSettings]);
+  }, [requestConsentForPull, loadSettings, loadOnboardingState]);
 
   useEffect(() => {
     if (activeView === 'audit') {
@@ -292,6 +302,9 @@ export default function Home() {
             )}
 
             <TransactionHistory transactions={financialData.transactions} />
+            {!onboardingCompleted && (
+              <OnboardingFlow onCompleted={() => setOnboardingCompleted(true)} />
+            )}
           </>
         ) : (
           <div className="glass-card" style={{ padding: 'var(--space-5)' }}>
