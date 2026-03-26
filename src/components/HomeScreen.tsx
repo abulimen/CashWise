@@ -50,6 +50,7 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
         <div className="safe-to-spend">
           <span className="safe-to-spend-dot" />
           Safe to spend: {safeToSpend}
+        </div>
       </div>
 
       {/* Stats grid */}
