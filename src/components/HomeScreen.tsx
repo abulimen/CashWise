@@ -50,15 +50,6 @@ export function HomeScreen({ financialData, onNavigate, aiSnippet }: HomeScreenP
         <div className="safe-to-spend">
           <span className="safe-to-spend-dot" />
           Safe to spend: {safeToSpend}
-        </div>
-        <div className="balance-hero-actions">
-          <button className="hero-action-btn hero-action-btn-primary" onClick={() => onNavigate('stash')}>
-            <Plus size={16} /> Add Money
-          </button>
-          <button className="hero-action-btn hero-action-btn-outline" onClick={() => onNavigate('copilot')}>
-            <ArrowRightLeft size={16} /> Transfer
-          </button>
-        </div>
       </div>
 
       {/* Stats grid */}

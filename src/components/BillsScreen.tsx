@@ -49,28 +49,30 @@ export function BillsScreen({ bills }: BillsScreenProps) {
               const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               const dueText = diffDays < 0 ? 'Overdue' : diffDays === 0 ? 'Due today' : `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
               return (
-                <div key={bill.id} className="txn-item">
-                  <div className="txn-icon">
-                    <CalendarClock size={18} />
+                <div key={bill.id} className="txn-item bill-item">
+                  <div className="bill-main">
+                    <div className="txn-icon">
+                      <CalendarClock size={18} />
+                    </div>
+                    <div className="txn-info">
+                      <div className="txn-name">{bill.name}</div>
+                      <div className="txn-meta">
+                        {new Date(bill.dueDate).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })} • {dueText}
+                      </div>
+                    </div>
                   </div>
-                <div className="txn-info">
-                  <div className="txn-name">{bill.name}</div>
-                  <div className="txn-meta">
-                    {new Date(bill.dueDate).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })} • {dueText}
+                  <div className="bill-actions">
+                    <div className="txn-amount-debit">{formatNaira(bill.amount)}</div>
+                    <div className="bill-action-row">
+                      <button className="btn btn-outline btn-sm" title="Edit">
+                        <Pencil size={14} /> <span className="action-text">Edit</span>
+                      </button>
+                      <button className="btn btn-danger btn-sm" title="Remove">
+                        <Trash2 size={14} /> <span className="action-text">Remove</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="bill-actions">
-                  <div className="txn-amount-debit">{formatNaira(bill.amount)}</div>
-                  <div className="bill-action-row">
-                    <button className="btn btn-outline btn-sm">
-                      <Pencil size={14} /> Edit
-                    </button>
-                    <button className="btn btn-danger btn-sm">
-                      <Trash2 size={14} /> Remove
-                    </button>
-                  </div>
-                </div>
-              </div>
             );
           })}
           </div>
