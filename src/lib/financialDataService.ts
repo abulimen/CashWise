@@ -3,24 +3,21 @@ import { getSupabaseAdmin } from '@/lib/supabaseServer';
 
 interface TransactionRow {
   id: string;
-  type: 'credit' | 'debit';
+  type?: 'credit' | 'debit';
+  tx_type?: 'credit' | 'debit';
   amount: string | number;
   narration: string | null;
   balance: string | number | null;
   category: string | null;
-  date: string;
+  date?: string;
+  tx_date?: string;
+  description?: string | null;
 }
 
 export async function loadFinancialData(userId: string): Promise<FinancialData> {
   const supabase = getSupabaseAdmin();
 
-  const [{ data: txRows }, { data: goalRows }] = await Promise.all([
-    supabase
-      .from('transactions')
-      .select('id, type, amount, narration, balance, date, category')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(200),
+  const [{ data: goalRows }] = await Promise.all([
     supabase
       .from('savings_goals')
       .select('target_amount, current_amount')
@@ -30,14 +27,40 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
       .limit(1),
   ]);
 
-  const transactions: Transaction[] = ((txRows || []) as TransactionRow[]).map((row) => ({
+  let txRows: TransactionRow[] = [];
+
+  // Primary: Mono-shaped schema
+  const monoQuery = await supabase
+    .from('transactions')
+    .select('id, type, amount, narration, balance, date, category')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(200);
+
+  if (monoQuery.error) {
+    // Fallback: legacy schema compatibility
+    const legacyQuery = await supabase
+      .from('transactions')
+      .select('id, tx_type, amount, narration, category, tx_date, description')
+      .eq('user_id', userId)
+      .order('tx_date', { ascending: false })
+      .limit(200);
+    if (legacyQuery.error) {
+      throw new Error(legacyQuery.error.message);
+    }
+    txRows = (legacyQuery.data || []) as TransactionRow[];
+  } else {
+    txRows = (monoQuery.data || []) as TransactionRow[];
+  }
+
+  const transactions: Transaction[] = txRows.map((row) => ({
     id: row.id,
-    type: row.type,
+    type: row.type || row.tx_type || 'debit',
     amount: Number(row.amount || 0),
-    narration: row.narration || '',
+    narration: row.narration || row.description || '',
     balance: row.balance === null ? null : Number(row.balance),
     category: row.category ?? null,
-    date: row.date,
+    date: row.date || row.tx_date || new Date().toISOString(),
   }));
 
   const totalCredits = transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0);
@@ -75,7 +98,7 @@ export async function loadFinancialData(userId: string): Promise<FinancialData> 
 
 export async function appendTransactionDelta(userId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
-  await supabase.from('transactions').insert({
+  const monoInsert = await supabase.from('transactions').insert({
     user_id: userId,
     type: 'debit',
     amount: 750,
@@ -84,4 +107,18 @@ export async function appendTransactionDelta(userId: string): Promise<void> {
     balance: null,
     date: new Date().toISOString(),
   });
+  if (monoInsert.error) {
+    const legacyInsert = await supabase.from('transactions').insert({
+      user_id: userId,
+      tx_type: 'debit',
+      amount: 750,
+      category: null,
+      narration: 'POS PURCHASE - CAMPUS KIOSK',
+      description: null,
+      tx_date: new Date().toISOString(),
+    });
+    if (legacyInsert.error) {
+      throw new Error(legacyInsert.error.message);
+    }
+  }
 }
