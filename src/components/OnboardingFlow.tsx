@@ -15,6 +15,18 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
   const [showWhy, setShowWhy] = useState(false);
   const [disagreeReason, setDisagreeReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [savedProfile, setSavedProfile] = useState<Record<string, unknown> | null>(null);
+  const [savedExists, setSavedExists] = useState(false);
+
+  const openReview = async () => {
+    const response = await fetch('/api/onboarding/profile');
+    if (!response.ok) return;
+    const data = await response.json();
+    setSavedExists(Boolean(data?.exists));
+    setSavedProfile((data?.profileDraft || null) as Record<string, unknown> | null);
+    setReviewOpen(true);
+  };
 
   const send = async () => {
     if (!input.trim()) return;
@@ -66,6 +78,9 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
           <button className="consent-btn consent-btn-allow" onClick={async () => { await fetch('/api/onboarding/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consentGiven: true }) }); setConsent(true); }}>Start Onboarding</button>
           <button className="consent-btn consent-btn-cancel" onClick={() => setConsent(true)}>Skip Sensitive Parts</button>
         </div>
+        <button className="feedback-btn feedback-btn-disagree" onClick={openReview} style={{ marginTop: 'var(--space-3)' }}>
+          Review & Delete My Profile Data
+        </button>
       </div>
     );
   }
@@ -97,8 +112,39 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
         <button className="feedback-btn feedback-btn-accept" onClick={() => save(true)}>Accept / Sounds good</button>
         <button className="feedback-btn feedback-btn-disagree" onClick={() => save(false)}>Disagree → Tell me why</button>
       </div>
+      <button className="feedback-btn feedback-btn-disagree" onClick={openReview}>
+        Review & Delete My Profile Data
+      </button>
       <textarea className="feedback-textarea" value={disagreeReason} onChange={(e) => setDisagreeReason(e.target.value)} placeholder="If disagreeing, tell me what to fix" />
       <div className="disclaimer-line">CashWise is an AI advisor. Profile info helps personalization but final decisions are yours.</div>
+
+      {reviewOpen && (
+        <div className="consent-overlay" role="dialog" aria-modal="true">
+          <div className="consent-modal glass-card">
+            <div className="consent-title">Stored Profile Data</div>
+            {!savedExists ? (
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>No saved profile data found.</p>
+            ) : (
+              <pre style={{ maxHeight: 260, overflow: 'auto', fontSize: '12px', marginBottom: 'var(--space-4)' }}>
+                {JSON.stringify(savedProfile, null, 2)}
+              </pre>
+            )}
+            <div className="consent-actions">
+              <button
+                className="consent-btn consent-btn-cancel"
+                onClick={async () => {
+                  await fetch('/api/onboarding/profile', { method: 'DELETE' });
+                  setSavedProfile(null);
+                  setSavedExists(false);
+                }}
+              >
+                Delete My Profile Data
+              </button>
+              <button className="consent-btn consent-btn-allow" onClick={() => setReviewOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
