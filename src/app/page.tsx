@@ -6,7 +6,6 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { TrustScore } from '@/components/TrustScore';
 import { AutoStash } from '@/components/AutoStash';
 import { TransactionHistory } from '@/components/TransactionHistory';
-import { ConsentModal } from '@/components/ConsentModal';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { calculateTrustScore } from '@/lib/trustScore';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
@@ -29,8 +28,6 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAutoStash, setShowAutoStash] = useState(false);
-  const [consentOpen, setConsentOpen] = useState(false);
-  const [pendingRefresh, setPendingRefresh] = useState<{ force: boolean; background: boolean } | null>(null);
   const [activeView, setActiveView] = useState<'home' | 'audit'>('home');
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
   const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
@@ -55,7 +52,7 @@ export default function Home() {
 
   const [autoStashAdvice, setAutoStashAdvice] = useState<Partial<AutoStashSuggestion>>({});
 
-  const initEncryptedCache = async () => {
+  const initEncryptedCache = useCallback(async () => {
     if (!appUserId) return;
     const dekBase64 = await generateDekBase64();
     const encrypted = await encryptWithDekBase64(financialData, dekBase64);
@@ -69,7 +66,7 @@ export default function Home() {
         dekBase64,
       }),
     });
-  };
+  }, [appUserId, financialData]);
 
   const refreshFinancialData = useCallback(async (force: boolean) => {
     if (!appUserId) return;
@@ -85,11 +82,6 @@ export default function Home() {
       setFinancialData(data.data as FinancialData);
     }
   }, [appUserId]);
-
-  const requestConsentForPull = useCallback((force: boolean, background = false) => {
-    setPendingRefresh({ force, background });
-    setConsentOpen(true);
-  }, []);
 
   const loadAuditTrail = useCallback(async () => {
     if (!appUserId) return;
@@ -114,14 +106,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const shouldInit = typeof window !== 'undefined' && !window.localStorage.getItem('cw_cache_initialized');
+    if (shouldInit) {
+      initEncryptedCache().finally(() => {
+        window.localStorage.setItem('cw_cache_initialized', 'true');
+      });
+    }
     loadSettings();
     loadOnboardingState();
-    requestConsentForPull(false, false);
+    refreshFinancialData(false);
     const interval = window.setInterval(() => {
-      requestConsentForPull(false, true);
+      refreshFinancialData(false);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, [requestConsentForPull, loadSettings, loadOnboardingState]);
+  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadOnboardingState]);
 
   useEffect(() => {
     if (activeView === 'audit') {
@@ -253,7 +251,7 @@ export default function Home() {
           </div>
           <button className="refresh-btn refresh-btn-small" onClick={() => setActiveView('home')}>Home</button>
           <button className="refresh-btn refresh-btn-small" onClick={() => setActiveView('audit')}>AI Audit Trail</button>
-          <button className="refresh-btn" onClick={() => requestConsentForPull(true, false)}>
+          <button className="refresh-btn" onClick={() => refreshFinancialData(true)}>
             Refresh
           </button>
         </div>
@@ -342,7 +340,7 @@ export default function Home() {
           messages={messages}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
-          onRefresh={() => requestConsentForPull(true, false)}
+          onRefresh={() => refreshFinancialData(true)}
           onSubmitFeedback={submitFeedback}
         />
       ) : (
@@ -355,25 +353,6 @@ export default function Home() {
         </div>
       )}
 
-      <ConsentModal
-        open={consentOpen}
-        onAllow={async () => {
-          setConsentOpen(false);
-          const shouldInit = typeof window !== 'undefined' && !window.localStorage.getItem('cw_cache_initialized');
-          if (shouldInit) {
-            await initEncryptedCache();
-            window.localStorage.setItem('cw_cache_initialized', 'true');
-          }
-          if (pendingRefresh) {
-            await refreshFinancialData(pendingRefresh.force);
-            setPendingRefresh(null);
-          }
-        }}
-        onCancel={() => {
-          setConsentOpen(false);
-          setPendingRefresh(null);
-        }}
-      />
     </div>
   );
 }
