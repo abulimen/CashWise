@@ -6,6 +6,14 @@ import { appendTransactionDelta, loadFinancialData } from '@/lib/financialDataSe
 
 const TWO_MINUTES_MS = 2 * 60 * 1000;
 
+function isCachePayloadInconsistent(payload: FinancialDataResponse['data']): boolean {
+  // Guard against stale/empty cache payloads: always re-hydrate from DB when no ledger rows are present.
+  if (payload.transactions.length === 0) {
+    return true;
+  }
+  return false;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const userId = url.searchParams.get('userId') || getAppUserId();
@@ -25,25 +33,28 @@ export async function GET(request: Request) {
     const dekBase64 = await unwrapDekForUser(userId, cached.wrapped_dek);
     const plaintext = await decryptWithDekBase64(cached.encrypted_blob, cached.iv, dekBase64);
     const cachedData = JSON.parse(plaintext) as FinancialDataResponse['data'];
+    const cacheInconsistent = isCachePayloadInconsistent(cachedData);
 
     const ageMs = Date.now() - new Date(cached.last_fetched_at).getTime();
     const isFresh = ageMs <= TWO_MINUTES_MS;
 
-    if (!forceRefresh && isFresh) {
+    if (!forceRefresh && isFresh && !cacheInconsistent) {
       return NextResponse.json({
         data: cachedData,
         source: 'mono',
       } satisfies FinancialDataResponse);
     }
 
-    if (!hasConsent) {
+    if (!hasConsent && !cacheInconsistent) {
       return NextResponse.json(
         { error: 'Consent required before pulling latest transactions.' },
         { status: 403 }
       );
     }
 
-    await appendTransactionDelta(userId);
+    if (hasConsent) {
+      await appendTransactionDelta(userId);
+    }
     const merged = await loadFinancialData(userId);
 
     const reEncrypted = await encryptWithDekBase64(merged, dekBase64);
