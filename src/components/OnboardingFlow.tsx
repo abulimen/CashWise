@@ -12,12 +12,23 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [sections, setSections] = useState<Array<{ name: string; summary: string; confidence: number; citation: string }>>([]);
   const [followUp, setFollowUp] = useState('');
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [awaitingFollowUp, setAwaitingFollowUp] = useState(false);
+  const [readyForReview, setReadyForReview] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const [disagreeReason, setDisagreeReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [savedProfile, setSavedProfile] = useState<Record<string, unknown> | null>(null);
   const [savedExists, setSavedExists] = useState(false);
+
+  const QUESTIONS = [
+    'How does your allowance/income usually come in? (frequency + range + installment style)',
+    'What fixed monthly expenses should I always reserve for? (e.g., Spotify, subscriptions)',
+    'What variable recurring expenses do you have and how often? (e.g., data every 3-5 days)',
+    'What are your top savings goals and priorities right now?',
+    'Any spending habits you want me to help with? (impulsive buying, betting, etc.)',
+  ];
 
   const openReview = async () => {
     const response = await fetch('/api/onboarding/profile');
@@ -41,7 +52,21 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
       const data = await response.json();
       setDraft(data.profileDraft || {});
       setSections(data.sections || []);
-      setFollowUp(data.followUpQuestion || '');
+      const nextFollowUp = data.followUpQuestion || '';
+      setFollowUp(nextFollowUp);
+      if (nextFollowUp) {
+        setAwaitingFollowUp(true);
+      } else {
+        setAwaitingFollowUp(false);
+        setQuestionIndex((prev) => {
+          const next = prev + 1;
+          if (next >= QUESTIONS.length) {
+            setReadyForReview(true);
+            return prev;
+          }
+          return next;
+        });
+      }
       setInput('');
     } finally {
       setLoading(false);
@@ -88,12 +113,26 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
   return (
     <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <div className="recommendation-section-title">Conversational Profile Builder</div>
-      <p style={{ color: 'var(--color-text-secondary)' }}>Type naturally: allowance timing/range, fixed costs (Spotify), variable costs (data every 3-5 days), goals, and habits.</p>
+      {!readyForReview ? (
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          Question {questionIndex + 1} of {QUESTIONS.length}: {awaitingFollowUp && followUp ? followUp : QUESTIONS[questionIndex]}
+        </p>
+      ) : (
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          Profile draft complete. Review the extracted sections below before accepting.
+        </p>
+      )}
       <div className="chat-input-wrapper">
-        <input className="chat-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Example: My allowance comes twice monthly, ₦40k-₦60k. Data every 4 days." />
-        <button className="chat-send-btn" onClick={send} disabled={loading}>↑</button>
+        <input
+          className="chat-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={awaitingFollowUp ? 'Answer the clarifying question naturally' : 'Type your answer naturally'}
+          disabled={readyForReview}
+        />
+        <button className="chat-send-btn" onClick={send} disabled={loading || readyForReview}>↑</button>
       </div>
-      {followUp && <div className="citation-panel">Clarifying question: {followUp}</div>}
+      {followUp && !readyForReview && <div className="citation-panel">Clarifying question: {followUp}</div>}
       {sections.map((s) => (
         <div key={s.name} className="citation-panel">
           <div style={{ fontWeight: 700 }}>{s.name} • Confidence {s.confidence}/100</div>
@@ -109,8 +148,8 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
         </div>
       </details>
       <div className="feedback-actions">
-        <button className="feedback-btn feedback-btn-accept" onClick={() => save(true)}>Accept / Sounds good</button>
-        <button className="feedback-btn feedback-btn-disagree" onClick={() => save(false)}>Disagree → Tell me why</button>
+        <button className="feedback-btn feedback-btn-accept" onClick={() => save(true)} disabled={!readyForReview}>Accept / Sounds good</button>
+        <button className="feedback-btn feedback-btn-disagree" onClick={() => save(false)} disabled={!readyForReview}>Disagree → Tell me why</button>
       </div>
       <button className="feedback-btn feedback-btn-disagree" onClick={openReview}>
         Review & Delete My Profile Data
