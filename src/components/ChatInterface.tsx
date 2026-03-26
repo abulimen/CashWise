@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ChatMessage } from '@/lib/types';
 import { RecommendationCard } from '@/components/RecommendationCard';
 
@@ -9,7 +9,13 @@ interface ChatInterfaceProps {
   onSendMessage: (content: string) => void;
   isLoading: boolean;
   onRefresh: () => void;
-  onSubmitFeedback: (payload: { query: string; aiSuggestion: string; explanation: string; actionType: 'Chat' | 'Auto-Stash'; confidence: number }) => void;
+  onSubmitFeedback: (payload: {
+    query: string;
+    aiSuggestion: string;
+    explanation: string;
+    actionType: 'Chat' | 'Auto-Stash';
+    confidence: number;
+  }) => void;
 }
 
 const SUGGESTIONS = [
@@ -19,7 +25,17 @@ const SUGGESTIONS = [
   'How is my spending this week?',
 ];
 
-export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, onSubmitFeedback }: ChatInterfaceProps) {
+function formatTime(ts: string) {
+  return new Date(ts).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
+}
+
+export function ChatInterface({
+  messages,
+  onSendMessage,
+  isLoading,
+  onRefresh,
+  onSubmitFeedback,
+}: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const [activeCitations, setActiveCitations] = useState<string | null>(null);
   const [feedbackTarget, setFeedbackTarget] = useState<ChatMessage | null>(null);
@@ -28,208 +44,210 @@ export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, o
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
-    onSendMessage(trimmed);
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || isLoading) return;
     setInput('');
+    onSendMessage(text);
+    setTimeout(scrollToBottom, 100);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    onSendMessage(suggestion);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('en-NG', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const confidenceClass = (score: number) =>
+    score >= 90 ? 'confidence-good' : score >= 70 ? 'confidence-mid' : 'confidence-low';
 
-  const confidenceClass = (score: number) => {
-    if (score >= 90) return 'confidence-good';
-    if (score >= 70) return 'confidence-mid';
-    return 'confidence-low';
-  };
+  const hasAdvice = (msg: ChatMessage) =>
+    Boolean(msg.recommendation || /\d/.test(msg.content));
 
-  const hasAdvice = (msg: ChatMessage) => Boolean(msg.recommendation || /\d/.test(msg.content));
-  const hasPendingUpdate = (msg: ChatMessage) => Boolean(msg.pendingProfileUpdate?.token);
+  const hasPendingUpdate = (msg: ChatMessage) =>
+    Boolean(msg.pendingProfileUpdate?.token);
+
+  const isEmpty = messages.length === 0;
 
   return (
-    <div className="chat-panel">
+    <div className="chat-screen">
       {/* Header */}
-      <div className="chat-header">
-        <span className="chat-title">AI Financial Copilot</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="chat-status">
-            <span className="chat-status-dot" />
+      <div className="chat-top-bar">
+        <div>
+          <div className="chat-top-title">AI Financial Copilot</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="chat-online">
+            <span className="chat-online-dot" />
             Online
-          </span>
-          <button className="refresh-btn refresh-btn-small" onClick={onRefresh}>Refresh</button>
+          </div>
+          <button className="refresh-btn refresh-btn-small" onClick={onRefresh} id="chat-refresh-btn">
+            Refresh
+          </button>
         </div>
       </div>
 
       {/* Messages */}
       <div className="chat-messages">
-        {messages.length === 0 ? (
-          <div className="welcome-message">
-            <div className="welcome-icon">💬</div>
-            <h2 className="welcome-title">Ask me anything about your money</h2>
-            <p className="welcome-subtitle">
+        {isEmpty ? (
+          <div className="chat-welcome">
+            <div className="chat-welcome-icon">💬</div>
+            <div className="chat-welcome-title">Ask me anything about your money</div>
+            <div className="chat-welcome-sub">
               I&apos;ll show you exactly how a purchase affects your budget — with clear reasoning you can check yourself.
-            </p>
-            <div className="welcome-suggestions">
-              {SUGGESTIONS.map((suggestion, i) => (
-                <button
-                  key={i}
-                  className="suggestion-btn"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                >
-                  {suggestion}
+            </div>
+            <div className="chat-suggestions">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="chat-suggestion-btn" onClick={() => onSendMessage(s)}>
+                  {s}
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <>
-            {messages.map((msg) => (
-              <div key={msg.id} className={`message message-${msg.role}`}>
-                <div className="message-bubble">
-                  {msg.content}
-                  {typeof msg.confidenceScore === 'number' && hasAdvice(msg) && (
-                    <button
-                      className={`confidence-badge ${confidenceClass(msg.confidenceScore)}`}
-                      onClick={() => setActiveCitations(activeCitations === msg.id ? null : msg.id)}
-                    >
-                      Confidence: {msg.confidenceScore}/100
-                    </button>
-                  )}
-                  {activeCitations === msg.id && (
-                    <div className="citation-panel">
-                      {(msg.citations || []).map((citation) => (
-                        <div key={citation.txId} className="citation-line">
-                          {citation.txId} • {new Date(citation.date).toLocaleDateString('en-NG')} • ₦{citation.amount.toLocaleString('en-NG')} • {citation.category}
+          messages.map((msg) => (
+            <div key={msg.id} className={`msg msg-${msg.role}`}>
+              <div className="msg-bubble">
+                {msg.content}
+
+                {/* Confidence badge */}
+                {typeof msg.confidenceScore === 'number' && hasAdvice(msg) && (
+                  <button
+                    className={`confidence-badge ${confidenceClass(msg.confidenceScore)}`}
+                    onClick={() => setActiveCitations(activeCitations === msg.id ? null : msg.id)}
+                  >
+                    Confidence: {msg.confidenceScore}/100
+                  </button>
+                )}
+
+                {/* Citations panel */}
+                {activeCitations === msg.id && (
+                  <div className="citation-panel">
+                    {(msg.citations || []).map((c) => (
+                      <div key={c.txId} className="citation-line">
+                        {c.txId} • {new Date(c.date).toLocaleDateString('en-NG')} • ₦{c.amount.toLocaleString('en-NG')} • {c.category}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Decision card */}
+                {msg.recommendation && <RecommendationCard recommendation={msg.recommendation} />}
+
+                {/* XAI accordion */}
+                {msg.role === 'assistant' && (
+                  <details className="xai-accordion">
+                    <summary>Why I said this</summary>
+                    <div className="xai-content">
+                      <div className="xai-heading">Data used</div>
+                      {(msg.citations || []).map((c) => (
+                        <div key={`xai-${c.txId}`} className="citation-line">
+                          {c.description} (₦{c.amount.toLocaleString('en-NG')}, {c.category}, {new Date(c.date).toLocaleDateString('en-NG')})
                         </div>
                       ))}
+                      <div className="xai-heading">Reasoning trace</div>
+                      <div>{msg.reasoningTrace || 'Checked recent cash flow, upcoming bills, and goals.'}</div>
+                      <div className="xai-heading">Prompt rule used</div>
+                      <div>{msg.usedPromptSnippet || 'Start with a clear Yes/No. Never make up numbers.'}</div>
                     </div>
-                  )}
-                  {msg.recommendation && (
-                    <RecommendationCard recommendation={msg.recommendation} />
-                  )}
-                  {hasAdvice(msg) && msg.role === 'assistant' && (
-                    <div className="feedback-actions">
-                      <button
-                        className="feedback-btn feedback-btn-accept"
-                        onClick={() => {
-                          onSubmitFeedback({
-                            query: messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || '',
-                            aiSuggestion: msg.content,
-                            explanation: 'Accepted / Sounds good',
-                            actionType: 'Chat',
-                            confidence: msg.confidenceScore || 0,
-                          });
-                        }}
-                      >
-                        Accept / Sounds good
-                      </button>
-                      <button className="feedback-btn feedback-btn-disagree" onClick={() => setFeedbackTarget(msg)}>Disagree → Tell me why</button>
-                    </div>
-                  )}
-                  {msg.role === 'assistant' && hasPendingUpdate(msg) && (
-                    <div className="feedback-actions">
-                      <button
-                        className="feedback-btn feedback-btn-accept"
-                        onClick={() => onSendMessage(`/confirm-profile-update ${msg.pendingProfileUpdate?.token || ''}`)}
-                      >
-                        Confirm update
-                      </button>
-                      <button
-                        className="feedback-btn feedback-btn-disagree"
-                        onClick={() => onSendMessage('Cancel that profile update.')}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                  {msg.role === 'assistant' && (
-                    <details className="xai-accordion">
-                      <summary>Why I said this</summary>
-                      <div className="xai-content">
-                        <div className="xai-heading">Data used</div>
-                        {(msg.citations || []).map((citation) => (
-                          <div key={`why-${citation.txId}`} className="citation-line">
-                            {citation.description} (₦{citation.amount.toLocaleString('en-NG')}, {citation.category}, {new Date(citation.date).toLocaleDateString('en-NG')})
-                          </div>
-                        ))}
-                        <div className="xai-heading">Reasoning trace</div>
-                        <div>{msg.reasoningTrace || 'Checked recent cash flow, upcoming bills, and goals.'}</div>
-                        <div className="xai-heading">Prompt rule snippet</div>
-                        <div>{msg.usedPromptSnippet || 'Start with a clear Yes/No. Never make up numbers.'}</div>
-                      </div>
-                    </details>
-                  )}
-                </div>
-                <span className="message-time">{formatTime(msg.timestamp)}</span>
+                  </details>
+                )}
+
+                {/* Feedback buttons */}
+                {hasAdvice(msg) && msg.role === 'assistant' && (
+                  <div className="feedback-actions">
+                    <button
+                      className="feedback-btn feedback-btn-accept"
+                      onClick={() => onSubmitFeedback({
+                        query: messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || '',
+                        aiSuggestion: msg.content,
+                        explanation: 'Accepted / Sounds good',
+                        actionType: 'Chat',
+                        confidence: msg.confidenceScore || 0,
+                      })}
+                    >Accept / Sounds good</button>
+                    <button
+                      className="feedback-btn feedback-btn-disagree"
+                      onClick={() => setFeedbackTarget(msg)}
+                    >Disagree → Tell me why</button>
+                  </div>
+                )}
+
+                {/* Profile update confirmation */}
+                {msg.role === 'assistant' && hasPendingUpdate(msg) && (
+                  <div className="feedback-actions">
+                    <button
+                      className="feedback-btn feedback-btn-accept"
+                      onClick={() => onSendMessage(`/confirm-profile-update ${msg.pendingProfileUpdate?.token || ''}`)}
+                    >Confirm update</button>
+                    <button
+                      className="feedback-btn feedback-btn-disagree"
+                      onClick={() => onSendMessage('Cancel that profile update.')}
+                    >Cancel</button>
+                  </div>
+                )}
               </div>
-            ))}
-            {isLoading && (
-              <div className="message message-assistant">
-                <div className="typing-indicator">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </div>
-              </div>
-            )}
-          </>
+              <span className="msg-time">{formatTime(msg.timestamp)}</span>
+            </div>
+          ))
+        )}
+
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="msg msg-assistant">
+            <div className="typing-indicator">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <form className="chat-input-area" onSubmit={handleSubmit}>
-        <div className="chat-input-wrapper">
+      {/* Input bar */}
+      <div className="chat-input-bar">
+        <div className="chat-input-wrap">
           <input
             ref={inputRef}
-            type="text"
-            className="chat-input"
-            placeholder="Ask about a purchase, e.g. &quot;Can I afford ₦12k headphones?&quot;"
+            className="chat-input-field"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder='Ask about a purchase, e.g. "Can I afford ₦12k headphones?"'
             disabled={isLoading}
             id="chat-input"
           />
           <button
-            type="submit"
             className="chat-send-btn"
-            disabled={!input.trim() || isLoading}
+            onClick={handleSend}
+            disabled={isLoading || !input.trim()}
             id="chat-send-btn"
+            aria-label="Send message"
           >
             ↑
           </button>
         </div>
-      </form>
+        <div className="disclaimer-line">CashWise is an AI advisor. We take no liability for financial decisions.</div>
+      </div>
 
-      <div className="disclaimer-line">CashWise is an AI advisor. We take no liability for financial decisions.</div>
-
+      {/* Disagree modal */}
       {feedbackTarget && (
         <div className="consent-overlay" role="dialog" aria-modal="true">
-          <div className="consent-modal glass-card">
+          <div className="consent-modal">
             <div className="consent-title">Why do you disagree?</div>
             <div className="feedback-chip-wrap">
-              {['My spending is usually lower', 'I have extra cash coming', 'This goal isn’t priority anymore', 'Other'].map((choice) => (
+              {['My spending is usually lower', 'I have extra cash coming', "This goal isn't priority anymore", 'Other'].map((c) => (
                 <button
-                  key={choice}
-                  className={`feedback-chip ${feedbackReason === choice ? 'active' : ''}`}
-                  onClick={() => setFeedbackReason(choice)}
-                >
-                  {choice}
-                </button>
+                  key={c}
+                  className={`feedback-chip ${feedbackReason === c ? 'active' : ''}`}
+                  onClick={() => setFeedbackReason(c)}
+                >{c}</button>
               ))}
             </div>
             <textarea
@@ -242,7 +260,9 @@ export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, o
               <button
                 className="consent-btn consent-btn-allow"
                 onClick={() => {
-                  const explanation = feedbackReason === 'Other' ? feedbackText.trim() : `${feedbackReason}${feedbackText ? `: ${feedbackText.trim()}` : ''}`;
+                  const explanation = feedbackReason === 'Other'
+                    ? feedbackText.trim()
+                    : `${feedbackReason}${feedbackText ? `: ${feedbackText.trim()}` : ''}`;
                   onSubmitFeedback({
                     query: messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || '',
                     aiSuggestion: feedbackTarget.content,
@@ -253,9 +273,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, onRefresh, o
                   setFeedbackTarget(null);
                   setFeedbackText('');
                 }}
-              >
-                Submit
-              </button>
+              >Submit</button>
               <button className="consent-btn consent-btn-cancel" onClick={() => setFeedbackTarget(null)}>Cancel</button>
             </div>
           </div>

@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { AutoStashSuggestion } from '@/lib/types';
+import { formatNaira } from '@/lib/currency';
 
 interface AutoStashProps {
-  suggestion: AutoStashSuggestion;
+  suggestion: Partial<AutoStashSuggestion>;
   onAccept: () => void;
   onDecline: () => void;
   onSubmitFeedback: (explanation: string) => void;
@@ -13,59 +14,62 @@ interface AutoStashProps {
 export function AutoStash({ suggestion, onAccept, onDecline, onSubmitFeedback }: AutoStashProps) {
   const [showWhyModal, setShowWhyModal] = useState(false);
   const [reason, setReason] = useState('My spending is usually lower');
-  const [text, setText] = useState('');
-  const formatAmount = (amount: number) => `₦${amount.toLocaleString('en-NG')}`;
+  const [text, setText] = useState('' );
+  const [showProvenance, setShowProvenance] = useState(false);
+
+  const incoming = suggestion.incomingAmount ?? 0;
+  const saving = suggestion.suggestedSavings ?? 0;
+  const pct = incoming > 0 ? Math.round((saving / incoming) * 100) : 0;
 
   return (
-    <div className="glass-card auto-stash-card">
-      <div className="auto-stash-header">
-        <span className="auto-stash-icon">🏦</span>
-        <span className="auto-stash-title">Smart Savings Suggestion</span>
+    <div className="autostash-proposal-card" id="autostash-proposal">
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 8 }}>
+        Smart Savings Suggestion
+      </div>
+      <div className="autostash-prompt">
+        Stash {formatNaira(saving)} from your {formatNaira(incoming)} inflow?
+      </div>
+      <div className="autostash-reasoning">
+        {suggestion.reasoning ?? 'Based on your goals and recent spending patterns.'}
       </div>
 
-      <div className="auto-stash-prompt">
-        You received {formatAmount(suggestion.incomingAmount)}. Save{' '}
-        {formatAmount(suggestion.suggestedSavings)}?
-      </div>
-
-      <div className="auto-stash-reasoning">
-        {suggestion.reasoning}
-      </div>
-
-      <div className="auto-stash-actions">
-        <button className="auto-stash-btn auto-stash-btn-accept" onClick={onAccept}>
-          Save {formatAmount(suggestion.suggestedSavings)}
-        </button>
-        <button className="auto-stash-btn auto-stash-btn-adjust">
-          Adjust
-        </button>
-        <button className="auto-stash-btn auto-stash-btn-decline" onClick={() => setShowWhyModal(true)}>
-          No, and here&apos;s why…
-        </button>
-      </div>
-
-      <details className="xai-accordion" open>
+      {/* Decision provenance */}
+      <details className="xai-accordion" open={showProvenance} onToggle={(e) => setShowProvenance((e.target as HTMLDetailsElement).open)}>
         <summary>Decision provenance</summary>
-        <div className="xai-content">
-          <div>Inflow detected: {formatAmount(suggestion.incomingAmount)}</div>
-          <div>Goals analyzed: {formatAmount(suggestion.currentSavings)} saved of {formatAmount(suggestion.savingsGoal)}</div>
-          <div>Current daily burn: {suggestion.reasoningTrace || 'Derived from your recent spending trend.'}</div>
-          <div>Suggestion breakdown: Suggested {formatAmount(suggestion.suggestedSavings)} stash.</div>
+        <div className="xai-content provenance-card" style={{ background: 'none', padding: 0 }}>
+          <div className="provenance-row"><span className="provenance-dot" /><span>Inflow detected: {formatNaira(incoming)}</span></div>
+          <div className="provenance-row"><span className="provenance-dot" /><span>Savings goal: {formatNaira(suggestion.savingsGoal ?? 0)} (saved: {formatNaira(suggestion.currentSavings ?? 0)})</span></div>
+          <div className="provenance-row"><span className="provenance-dot" /><span>Rule: Stash {pct}% of inflow toward active goals</span></div>
+          <div className="provenance-row"><span className="provenance-dot" /><span>{suggestion.reasoningTrace ?? 'Derived from your recent spending trend.'}</span></div>
         </div>
       </details>
 
+      <div className="autostash-actions" style={{ marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={onAccept} id="autostash-accept-btn">
+          ✓ Stash it
+        </button>
+        <button className="btn btn-outline" onClick={() => setShowWhyModal(true)} id="autostash-decline-btn">
+          No, here&apos;s why…
+        </button>
+      </div>
+
       {showWhyModal && (
         <div className="consent-overlay" role="dialog" aria-modal="true">
-          <div className="consent-modal glass-card">
+          <div className="consent-modal">
             <div className="consent-title">Why do you disagree?</div>
             <div className="feedback-chip-wrap">
-              {['My spending is usually lower', 'I have extra cash coming', 'This goal isn’t priority anymore', 'Other'].map((choice) => (
-                <button key={choice} className={`feedback-chip ${reason === choice ? 'active' : ''}`} onClick={() => setReason(choice)}>
-                  {choice}
+              {['My spending is usually lower', 'I have extra cash coming', 'This goal isn\'t priority anymore', 'Other'].map((c) => (
+                <button key={c} className={`feedback-chip ${reason === c ? 'active' : ''}`} onClick={() => setReason(c)}>
+                  {c}
                 </button>
               ))}
             </div>
-            <textarea className="feedback-textarea" value={text} onChange={(e) => setText(e.target.value)} placeholder="Add your explanation" />
+            <textarea
+              className="feedback-textarea"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Add your explanation"
+            />
             <div className="consent-actions">
               <button
                 className="consent-btn consent-btn-allow"
@@ -75,9 +79,7 @@ export function AutoStash({ suggestion, onAccept, onDecline, onSubmitFeedback }:
                   onDecline();
                   setShowWhyModal(false);
                 }}
-              >
-                Submit
-              </button>
+              >Submit</button>
               <button className="consent-btn consent-btn-cancel" onClick={() => setShowWhyModal(false)}>Cancel</button>
             </div>
           </div>

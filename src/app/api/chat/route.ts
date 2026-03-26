@@ -22,6 +22,27 @@ interface GoalRow {
   due_date: string | null;
 }
 
+function inferVerdictFromText(text: string): 'yes' | 'caution' | 'no' | null {
+  const normalized = text.trim().toLowerCase();
+  if (normalized.startsWith('yes')) return 'yes';
+  if (normalized.startsWith('no')) return 'no';
+  if (
+    normalized.includes("don't have enough info") ||
+    normalized.includes('cannot verify') ||
+    normalized.includes('cannot recommend') ||
+    normalized.includes('not enough info')
+  ) {
+    return 'caution';
+  }
+  return null;
+}
+
+function confidenceFromScore(score: number): 'high' | 'medium' | 'low' {
+  if (score >= 90) return 'high';
+  if (score >= 70) return 'medium';
+  return 'low';
+}
+
 function encodeUpdateToken(payload: { patch: Record<string, unknown>; summary: string; confidence: number }): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
@@ -144,6 +165,7 @@ export async function POST(request: NextRequest) {
     let citations: DataCitation[] = [];
     let reasoningTrace = '';
     let usedPromptSnippet = '';
+    let judgedVerdict: 'yes' | 'caution' | 'no' | null = null;
 
     try {
       const supabase = getSupabaseAdmin();
@@ -183,6 +205,7 @@ export async function POST(request: NextRequest) {
       citations = judged.citations;
       reasoningTrace = judged.reasoningTrace;
       usedPromptSnippet = judged.usedPromptSnippet;
+      judgedVerdict = inferVerdictFromText(judged.finalResponse);
     } catch (geminiError) {
       console.warn('Gemini failed, using local decision engine:', geminiError);
       // Fall back to local-generated message
@@ -198,7 +221,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const finalRecommendation = localRecommendation;
+    let finalRecommendation = localRecommendation;
+    if (finalRecommendation && judgedVerdict && finalRecommendation.verdict !== judgedVerdict) {
+      finalRecommendation = {
+        ...finalRecommendation,
+        verdict: judgedVerdict,
+        confidence: confidenceFromScore(confidenceScore),
+        suggestion: responseMessage.split('\n')[0] || finalRecommendation.suggestion,
+      };
+    }
 
     const response: ChatResponse = {
       message: responseMessage,

@@ -99,14 +99,19 @@ export async function POST(request: NextRequest) {
       normalized.includes('not enough info');
     const shouldSuggest = inflow.detected && startsWithYes && !hasUncertainSignal && judged.confidenceScore >= 70;
 
-    await insertAuditTrail({
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      action: 'Auto-Stash',
-      suggestion: judged.finalResponse,
-      user_decision: 'Pending',
-      confidence: judged.confidenceScore,
-    });
+    try {
+      await insertAuditTrail({
+        user_id: userId,
+        timestamp: new Date().toISOString(),
+        action: 'Auto-Stash',
+        suggestion: judged.finalResponse,
+        user_decision: 'Pending',
+        confidence: judged.confidenceScore,
+      });
+    } catch (auditError) {
+      // Audit logging should never block user-facing advice.
+      console.warn('Auto-Stash audit logging failed:', auditError);
+    }
 
     return NextResponse.json({
       message: `${judged.finalResponse}\n\nConfidence score: ${judged.confidenceScore}/100`,

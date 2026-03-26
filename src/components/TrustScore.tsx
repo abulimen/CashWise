@@ -11,93 +11,90 @@ export function TrustScore({ result }: TrustScoreProps) {
   const [expanded, setExpanded] = useState(false);
   const [animated, setAnimated] = useState(false);
 
-  // Animate ring on mount
   useEffect(() => {
-    const timer = setTimeout(() => setAnimated(true), 200);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setAnimated(true), 300);
+    return () => clearTimeout(t);
   }, []);
 
-  // SVG ring calculations
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
-  const targetOffset = circumference - (result.overall / 100) * circumference;
-  // Start from full (empty ring) then animate to target
-  const offset = animated ? targetOffset : circumference;
+  const offset = animated
+    ? circumference - (result.overall / 100) * circumference
+    : circumference;
 
-  const getScoreColor = (score: number) => {
-    if (score >= 75) return 'var(--color-yes)';
-    if (score >= 50) return 'var(--color-caution)';
-    return 'var(--color-no)';
-  };
-
-  const mainColor = getScoreColor(result.overall);
+  const fillColor = result.overall >= 75
+    ? 'var(--color-primary)'
+    : result.overall >= 50
+    ? 'var(--color-warning)'
+    : 'var(--color-danger)';
 
   return (
     <div
-      className="glass-card trust-score-card"
+      className="trust-card anim-card-3"
+      style={{ margin: '0 16px' }}
       onClick={() => setExpanded(!expanded)}
-      style={{ cursor: 'pointer' }}
+      id="trust-score-card"
     >
-      <div className="trust-score-header">
-        <span className="trust-score-title">📈 Financial Trust Score</span>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-          {expanded ? 'tap to collapse' : 'tap to see why'}
-        </span>
+      {/* Compact row view */}
+      <div className="trust-card-row">
+        <div className="trust-badge">
+          <div className="trust-badge-icon">🏅</div>
+          <div>
+            <div className="trust-badge-label">Trust Score</div>
+            <div className="trust-badge-sub">Building credit</div>
+          </div>
+        </div>
+        <div className="trust-score-num">
+          <div className="trust-score-num-val">{result.overall}</div>
+          <div className="trust-score-num-verdict">
+            ↗ {result.label}
+          </div>
+        </div>
       </div>
 
-      <div className="trust-score-gauge">
-        <svg className="trust-score-ring" width="120" height="120">
-          <circle
-            className="trust-score-ring-bg"
-            cx="60"
-            cy="60"
-            r={radius}
-            strokeWidth="8"
-            fill="none"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            strokeWidth="8"
-            fill="none"
-            stroke={mainColor}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          />
-        </svg>
-        <span className="trust-score-value" style={{ color: mainColor }}>
-          {result.overall}
-        </span>
-        <span className="trust-score-label-text">{result.label}</span>
-      </div>
-
-      {/* Expandable breakdown */}
+      {/* Expanded gauge + breakdown */}
       {expanded && (
-        <div className="trust-score-factors" style={{ animation: 'fade-in 0.3s ease' }}>
-          {result.factors.map((factor, i) => (
-            <div key={i} className="trust-score-factor">
-              <div className="trust-score-factor-header">
-                <span className="trust-score-factor-name">{factor.name}</span>
-                <span className="trust-score-factor-score">{factor.score}/100</span>
-              </div>
-              <div className="trust-score-factor-bar">
-                <div
-                  className="trust-score-factor-fill"
-                  style={{
-                    width: `${factor.score}%`,
-                    background: getScoreColor(factor.score),
-                    transition: 'width 0.8s ease',
-                  }}
-                />
-              </div>
-              <div className="trust-score-factor-explanation">{factor.explanation}</div>
+        <div style={{ animation: 'card-in 0.3s ease' }}>
+          <div className="trust-gauge-wrap">
+            <svg className="trust-gauge-svg" width="120" height="120">
+              <circle cx="60" cy="60" r={radius} strokeWidth="8" fill="none" className="trust-gauge-track" />
+              <circle
+                cx="60" cy="60" r={radius} strokeWidth="8" fill="none"
+                stroke={fillColor}
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                className="trust-gauge-fill"
+              />
+            </svg>
+            <div className="trust-gauge-text">
+              <div className="trust-gauge-text-val">{result.overall}</div>
+              <div className="trust-gauge-text-lbl">{result.label}</div>
             </div>
-          ))}
+          </div>
+
+          <div className="trust-factors">
+            {result.factors.map((f) => {
+              const fc = f.score >= 75 ? 'var(--color-success)' : f.score >= 50 ? 'var(--color-warning)' : 'var(--color-danger)';
+              return (
+                <div key={f.name}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="trust-factor-name">{f.name}</span>
+                    <span className="trust-factor-score" style={{ color: fc }}>{f.score}/100</span>
+                  </div>
+                  <div className="trust-factor-bar-track">
+                    <div className="trust-factor-bar-fill" style={{ width: `${f.score}%`, background: fc }} />
+                  </div>
+                  <div className="trust-factor-note">{f.explanation}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 8 }}>
+        {expanded ? 'tap to collapse' : 'tap to expand'}
+      </div>
     </div>
   );
 }
