@@ -2,6 +2,7 @@
 
 import { CalendarClock } from 'lucide-react';
 import { formatNaira } from '@/lib/currency';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface BillItem {
   id: string;
@@ -31,6 +32,9 @@ export function BillsScreen({ bills }: BillsScreenProps) {
       <div className="stash-screen">
         <div className="section-hdr" style={{ padding: 0 }}>
           <h2>Due bills</h2>
+          <button className="btn btn-primary btn-sm">
+            <Plus size={14} /> Add bill
+          </button>
         </div>
 
         <div className="txn-card">
@@ -49,16 +53,26 @@ export function BillsScreen({ bills }: BillsScreenProps) {
                   <div className="txn-icon">
                     <CalendarClock size={18} />
                   </div>
-                  <div className="txn-info">
-                    <div className="txn-name">{bill.name}</div>
-                    <div className="txn-meta">
-                      {new Date(bill.dueDate).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })} • {dueText}
-                    </div>
+                <div className="txn-info">
+                  <div className="txn-name">{bill.name}</div>
+                  <div className="txn-meta">
+                    {new Date(bill.dueDate).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })} • {dueText}
                   </div>
-                  <div className="txn-amount-debit">{formatNaira(bill.amount)}</div>
                 </div>
-              );
-            })}
+                <div className="bill-actions">
+                  <div className="txn-amount-debit">{formatNaira(bill.amount)}</div>
+                  <div className="bill-action-row">
+                    <button className="btn btn-outline btn-sm">
+                      <Pencil size={14} /> Edit
+                    </button>
+                    <button className="btn btn-danger btn-sm">
+                      <Trash2 size={14} /> Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
           </div>
         </div>
       </div>

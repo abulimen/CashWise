@@ -182,13 +182,14 @@ export default function Home() {
       content,
       timestamp: new Date().toISOString(),
     };
+    const nextHistory = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, financialData, conversationHistory: messages }),
+        body: JSON.stringify({ message: content, financialData, conversationHistory: nextHistory }),
       });
       const data = await res.json();
       const assistantMsg: ChatMessage = {
