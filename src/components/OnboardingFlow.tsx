@@ -30,6 +30,8 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
     'Any spending habits you want me to help with? (impulsive buying, betting, etc.)',
   ];
 
+  const displaySections = sections.filter((s) => readyForReview || s.confidence >= 30);
+
   const openReview = async () => {
     const response = await fetch('/api/onboarding/profile');
     if (!response.ok) return;
@@ -115,7 +117,9 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
       <div className="recommendation-section-title">Conversational Profile Builder</div>
       {!readyForReview ? (
         <p style={{ color: 'var(--color-text-secondary)' }}>
-          Question {questionIndex + 1} of {QUESTIONS.length}: {awaitingFollowUp && followUp ? followUp : QUESTIONS[questionIndex]}
+          {awaitingFollowUp
+            ? `Follow-up for Question ${questionIndex + 1} of ${QUESTIONS.length}: ${followUp || QUESTIONS[questionIndex]}`
+            : `Question ${questionIndex + 1} of ${QUESTIONS.length}: ${QUESTIONS[questionIndex]}`}
         </p>
       ) : (
         <p style={{ color: 'var(--color-text-secondary)' }}>
@@ -133,7 +137,10 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
         <button className="chat-send-btn" onClick={send} disabled={loading || readyForReview}>↑</button>
       </div>
       {followUp && !readyForReview && <div className="citation-panel">Clarifying question: {followUp}</div>}
-      {sections.map((s) => (
+      {!readyForReview && sections.some((s) => s.confidence < 30) && (
+        <div className="citation-line">Draft profile is awaiting clarification before confidence is shown.</div>
+      )}
+      {displaySections.map((s) => (
         <div key={s.name} className="citation-panel">
           <div style={{ fontWeight: 700 }}>{s.name} • Confidence {s.confidence}/100</div>
           <div>{s.summary}</div>
