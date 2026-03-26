@@ -5,9 +5,10 @@ import { Send } from 'lucide-react';
 
 interface OnboardingFlowProps {
   onCompleted: () => void;
+  onSkip?: () => void;
 }
 
-export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
+export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
   const [consent, setConsent] = useState(false);
   const [input, setInput] = useState('');
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -124,7 +125,13 @@ export function OnboardingFlow({ onCompleted }: OnboardingFlowProps) {
         </p>
         <div className="consent-actions">
           <button className="consent-btn consent-btn-allow" onClick={async () => { await fetch('/api/onboarding/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consentGiven: true }) }); setConsent(true); }}>Start Onboarding</button>
-          <button className="consent-btn consent-btn-cancel" onClick={() => setConsent(true)}>Skip Sensitive Parts</button>
+          <button className="consent-btn consent-btn-cancel" onClick={() => {
+            if (onSkip) {
+              onSkip();
+              return;
+            }
+            setConsent(true);
+          }}>Skip for now</button>
         </div>
         <button className="feedback-btn feedback-btn-disagree" onClick={openReview} style={{ marginTop: 'var(--space-3)' }}>
           Review & Delete My Profile Data

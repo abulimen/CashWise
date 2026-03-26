@@ -9,7 +9,7 @@ import { TrustScore } from '@/components/TrustScore';
 
 interface HomeScreenProps {
   financialData: FinancialData;
-  onNavigate: (screen: 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit') => void;
+  onNavigate: (screen: 'home' | 'copilot' | 'stash' | 'bills' | 'audit') => void;
   aiSnippet?: string;
 }
 

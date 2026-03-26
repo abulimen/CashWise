@@ -1,9 +1,9 @@
 'use client';
 
-import { Home, MessageSquare, Landmark, User, ShieldCheck, Settings, ReceiptText } from 'lucide-react';
+import { Home, MessageSquare, Landmark, ShieldCheck, ReceiptText } from 'lucide-react';
 import { ReactNode } from 'react';
 
-type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit';
+type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'audit';
 
 interface NavItem {
   id: Screen;
@@ -16,7 +16,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'copilot', icon: <MessageSquare size={22} />, label: 'Copilot' },
   { id: 'stash',   icon: <Landmark size={22} />, label: 'Stash' },
   { id: 'bills',   icon: <ReceiptText size={22} />, label: 'Bills' },
-  { id: 'profile', icon: <User size={22} />, label: 'Profile' },
 ];
 
 interface BottomNavProps {
@@ -49,7 +48,6 @@ const SIDEBAR_ITEMS: NavItem[] = [
   { id: 'stash',   icon: <Landmark size={20} />, label: 'Stash' },
   { id: 'bills',   icon: <ReceiptText size={20} />, label: 'Bills' },
   { id: 'audit',   icon: <ShieldCheck size={20} />, label: 'Score' },
-  { id: 'profile', icon: <Settings size={20} />,  label: 'Settings' },
 ];
 
 interface SidebarProps {

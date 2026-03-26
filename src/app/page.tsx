@@ -6,13 +6,12 @@ import { HomeScreen } from '@/components/HomeScreen';
 import { StashScreen } from '@/components/StashScreen';
 import { AuditScreen } from '@/components/AuditScreen';
 import { BillsScreen } from '@/components/BillsScreen';
-import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { BottomNav, Sidebar } from '@/components/Nav';
 import { FinancialData, ChatMessage, AutoStashSuggestion } from '@/lib/types';
 import { encryptWithDekBase64, generateDekBase64 } from '@/lib/secureCache';
 import { detectNewBulkInflow } from '@/lib/inflowDetection';
 
-type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'profile' | 'audit';
+type Screen = 'home' | 'copilot' | 'stash' | 'bills' | 'audit';
 
 const DEFAULT_FIN_DATA: FinancialData = {
   balance: 0,
@@ -38,7 +37,6 @@ export default function Home() {
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
   const [bills, setBills] = useState<Array<{ id: string; name: string; amount: number; dueDate: string; status: string }>>([]);
   const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true); // default true — only show if API says otherwise
   const [aiSnippet, setAiSnippet] = useState<string | undefined>();
   const financialDataRef = useRef(financialData);
 
@@ -117,16 +115,6 @@ export default function Home() {
     } catch { /* silent */ }
   }, []);
 
-  // ── Load onboarding state ──
-  const loadOnboardingState = useCallback(async () => {
-    try {
-      const res = await fetch('/api/onboarding/profile');
-      if (!res.ok) return;
-      const data = await res.json();
-      setOnboardingCompleted(Boolean(data?.onboardingCompleted));
-    } catch { /* silent — default to completed so we don't block UI */ }
-  }, []);
-
   // ── Load auto-stash AI advice ──
   useEffect(() => {
     if (autoStashSuggestion.incomingAmount <= 0) return;
@@ -163,12 +151,11 @@ export default function Home() {
       initEncryptedCache().finally(() => window.localStorage.setItem('cw_cache_initialized', 'true'));
     }
     loadSettings();
-    loadOnboardingState();
     loadBills();
     refreshFinancialData(false);
     const interval = window.setInterval(() => refreshFinancialData(false), 120_000);
     return () => window.clearInterval(interval);
-  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadOnboardingState, loadBills]);
+  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadBills]);
 
   useEffect(() => {
     if (screen === 'audit') loadAuditTrail();
@@ -290,20 +277,6 @@ export default function Home() {
               })
             }
           />
-        );
-      case 'profile':
-        return (
-          <div className="screen">
-            <div className="top-bar">
-              <div>
-                <div className="top-bar-greeting">Personalize your AI</div>
-                <div className="top-bar-name">Profile Setup</div>
-              </div>
-            </div>
-            <div style={{ padding: '0 16px' }}>
-              <OnboardingFlow onCompleted={() => setOnboardingCompleted(true)} />
-            </div>
-          </div>
         );
       case 'bills':
         return <BillsScreen bills={bills} />;

@@ -19,7 +19,7 @@ export default function LoginPage() {
         setError('Unable to sign in right now. Please try again.');
         return;
       }
-      router.replace('/connect-bank');
+      router.replace('/onboarding');
     } catch {
       setError('Unable to sign in right now. Please try again.');
     } finally {
