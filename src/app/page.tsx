@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChatInterface } from '@/components/ChatInterface';
 import { HomeScreen } from '@/components/HomeScreen';
 import { StashScreen } from '@/components/StashScreen';
@@ -27,6 +28,7 @@ const DEFAULT_FIN_DATA: FinancialData = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const appUserId = process.env.NEXT_PUBLIC_CASHWISE_DEMO_USER_ID || '';
   const [screen, setScreen] = useState<Screen>('home');
   const [financialData, setFinancialData] = useState<FinancialData>(DEFAULT_FIN_DATA);
@@ -146,6 +148,11 @@ export default function Home() {
 
   // ── Boot ──
   useEffect(() => {
+    if (typeof window !== 'undefined' && !window.localStorage.getItem('cw_logged_in')) {
+      router.replace('/login');
+      return;
+    }
+
     const shouldInit = typeof window !== 'undefined' && !window.localStorage.getItem('cw_cache_initialized');
     if (shouldInit) {
       initEncryptedCache().finally(() => window.localStorage.setItem('cw_cache_initialized', 'true'));
@@ -155,7 +162,7 @@ export default function Home() {
     refreshFinancialData(false);
     const interval = window.setInterval(() => refreshFinancialData(false), 120_000);
     return () => window.clearInterval(interval);
-  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadBills]);
+  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadBills, router]);
 
   useEffect(() => {
     if (screen === 'audit') loadAuditTrail();

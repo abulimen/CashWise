@@ -19,7 +19,8 @@ export default function LoginPage() {
         setError('Unable to sign in right now. Please try again.');
         return;
       }
-      router.replace('/onboarding');
+      window.localStorage.setItem('cw_logged_in', 'true');
+      router.replace('/connect-bank');
     } catch {
       setError('Unable to sign in right now. Please try again.');
     } finally {

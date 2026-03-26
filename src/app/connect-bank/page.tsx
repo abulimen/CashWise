@@ -23,7 +23,7 @@ export default function ConnectBankPage() {
         setError('Unable to connect bank right now. Please try again.');
         return;
       }
-      router.replace('/');
+      router.replace('/onboarding');
     } catch {
       setError('Unable to connect bank right now. Please try again.');
     } finally {
