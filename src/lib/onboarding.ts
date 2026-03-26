@@ -68,18 +68,28 @@ function normalizeFollowUp(activeQuestion: string, followUpQuestion?: string): s
 export async function runOnboardingExtraction(
   userText: string,
   priorDraft?: Record<string, unknown>,
-  options?: { questionIndex?: number; activeQuestion?: string }
+  options?: {
+    questionIndex?: number;
+    activeQuestion?: string;
+    conversationHistory?: Array<{ question: string; answer: string }>;
+  }
 ): Promise<OnboardingResult> {
   const activeQuestion = options?.activeQuestion || 'General onboarding question';
   const questionIndex = Number(options?.questionIndex || 0);
+  const historyLines = (options?.conversationHistory || [])
+    .map((item, index) => `${index + 1}. Q: ${item.question}\n   A: ${item.answer}`)
+    .join('\n');
   const prompt = `User onboarding input: ${userText}
 Active question (${questionIndex + 1}/5): ${activeQuestion}
+Conversation history:
+${historyLines || '(no prior answers yet)'}
 Prior draft: ${JSON.stringify(priorDraft || {}, null, 2)}
 Rules:
 - Focus extraction on the active question first.
 - Do not ask about a different section while active question is unresolved.
 - Only add followUpQuestion if active question is still missing critical data.
-- Never repeat an identical follow-up.`;
+- Never repeat an identical follow-up.
+- If the user explicitly declines a habit/topic (e.g., "no thanks"), record that as a valid answer with low-moderate confidence.`;
 
   const draftRaw = await callGemini(PRIMARY, prompt, [], {
     model: 'gemini-3.1-flash-lite-preview',
@@ -89,13 +99,18 @@ Rules:
     maxOutputTokens: 1400,
   });
 
-  const judgedRaw = await callGemini(JUDGE, `Draft JSON: ${draftRaw}\nOriginal input: ${userText}`, [], {
+  const judgedRaw = await callGemini(
+    JUDGE,
+    `Draft JSON: ${draftRaw}\nOriginal input: ${userText}\nConversation history:\n${historyLines || '(no prior answers yet)'}`,
+    [],
+    {
     model: 'gemini-3.1-flash-lite-preview',
     temperature: 0,
     topP: 0.1,
     responseMimeType: 'application/json',
     maxOutputTokens: 1400,
-  });
+    }
+  );
 
   const parsed = JSON.parse(judgedRaw) as {
     profileDraft?: Record<string, unknown>;
@@ -111,7 +126,10 @@ Rules:
       confidence: Math.max(0, Math.min(100, Math.round(Number(s.confidence) || 0))),
     })),
     followUpQuestion: followUp || undefined,
-    xaiInputs: [userText],
+    xaiInputs: [
+      userText,
+      ...(options?.conversationHistory || []).map((item) => `${item.question} -> ${item.answer}`),
+    ],
     reasoningTrace: 'Parsed natural language profile input and verified extraction with strict judge pass.',
   };
 }

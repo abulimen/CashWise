@@ -12,10 +12,12 @@ export async function POST(request: NextRequest) {
     profileDraft?: Record<string, unknown>;
     questionIndex?: number;
     activeQuestion?: string;
+    conversationHistory?: Array<{ question: string; answer: string }>;
   };
   const result = await runOnboardingExtraction(body.message, body.profileDraft, {
     questionIndex: body.questionIndex,
     activeQuestion: body.activeQuestion,
+    conversationHistory: body.conversationHistory,
   });
 
   const avgConfidence = result.sections.length > 0

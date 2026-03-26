@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, BrainCircuit, ShieldAlert, Edit3 } from 'lucide-react';
 
 interface OnboardingFlowProps {
   onCompleted: () => void;
@@ -23,6 +23,7 @@ export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [savedProfile, setSavedProfile] = useState<Record<string, unknown> | null>(null);
   const [savedExists, setSavedExists] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
 
   const QUESTIONS = [
     'How does your allowance/income usually come in? (frequency + range + installment style)',
@@ -46,6 +47,11 @@ export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
   const send = async () => {
     if (!input.trim()) return;
     const wasAwaitingFollowUp = awaitingFollowUp;
+    const activePrompt = wasAwaitingFollowUp ? (followUp || QUESTIONS[questionIndex]) : QUESTIONS[questionIndex];
+    const nextHistory = [
+      ...conversationHistory,
+      { question: activePrompt, answer: input.trim() },
+    ];
     setLoading(true);
     try {
       const response = await fetch('/api/onboarding/message', {
@@ -56,10 +62,12 @@ export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
           profileDraft: draft,
           questionIndex,
           activeQuestion: QUESTIONS[questionIndex],
+          conversationHistory: nextHistory,
         }),
       });
       if (!response.ok) return;
       const data = await response.json();
+      setConversationHistory(nextHistory);
       setDraft(data.profileDraft || {});
       setSections(data.sections || []);
       const nextFollowUp = String(data.followUpQuestion || '').trim();
@@ -118,22 +126,29 @@ export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
 
   if (!consent) {
     return (
-      <div className="glass-card" style={{ padding: 'var(--space-5)' }}>
-        <div className="recommendation-section-title" style={{ marginBottom: 'var(--space-3)' }}>Set Up My Financial Brain</div>
-        <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
+      <div className="onboarding-hero-card">
+        <div className="onboarding-hero-icon-wrapper">
+          <BrainCircuit size={40} />
+        </div>
+        <h1 className="onboarding-hero-title">Set Up My Financial Brain</h1>
+        <p className="onboarding-hero-subtitle">
           To give you accurate advice, I&apos;ll ask about your income, expenses, goals, and habits. This info stays encrypted and is only used for your profile. You can delete or update anything anytime.
         </p>
-        <div className="consent-actions">
-          <button className="consent-btn consent-btn-allow" onClick={async () => { await fetch('/api/onboarding/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consentGiven: true }) }); setConsent(true); }}>Start Onboarding</button>
-          <button className="consent-btn consent-btn-cancel" onClick={() => {
+        <div className="onboarding-hero-actions">
+          <button className="btn btn-primary" onClick={async () => { await fetch('/api/onboarding/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consentGiven: true }) }); setConsent(true); }}>
+            Start Onboarding
+          </button>
+          <button className="btn btn-onboarding-skip" onClick={() => {
             if (onSkip) {
               onSkip();
               return;
             }
             setConsent(true);
-          }}>Skip for now</button>
+          }}>
+            Skip for now
+          </button>
         </div>
-        <button className="feedback-btn feedback-btn-disagree" onClick={openReview} style={{ marginTop: 'var(--space-3)' }}>
+        <button className="btn-ghost" onClick={openReview} style={{ marginTop: '24px', fontSize: 13 }}>
           Review & Delete My Profile Data
         </button>
       </div>
@@ -141,32 +156,69 @@ export function OnboardingFlow({ onCompleted, onSkip }: OnboardingFlowProps) {
   }
 
   return (
-    <div className="glass-card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <div className="recommendation-section-title">Conversational Profile Builder</div>
+    <div className="onboarding-chat-area">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <BrainCircuit size={24} className="text-primary" style={{ color: 'var(--color-primary)' }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversational Builder</div>
+            <div style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>Step {questionIndex + 1} of {QUESTIONS.length}</div>
+          </div>
+        </div>
+        {onSkip && (
+          <button 
+            onClick={onSkip}
+            style={{
+              background: 'var(--color-bg-input)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-full)',
+              padding: '6px 16px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer'
+            }}
+          >
+            Skip
+          </button>
+        )}
+      </div>
+
       {!readyForReview ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>
-          {awaitingFollowUp
-            ? `Follow-up for Question ${questionIndex + 1} of ${QUESTIONS.length}: ${followUp || QUESTIONS[questionIndex]}`
-            : `Question ${questionIndex + 1} of ${QUESTIONS.length}: ${QUESTIONS[questionIndex]}`}
-        </p>
+        <div className="onboarding-question-bubble">
+          {awaitingFollowUp ? followUp || QUESTIONS[questionIndex] : QUESTIONS[questionIndex]}
+        </div>
       ) : (
-        <p style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="onboarding-question-bubble">
           Profile draft complete. Review the extracted sections below before accepting.
-        </p>
+        </div>
       )}
-      <div className="chat-input-wrapper">
+
+      {followUp && !readyForReview && (
+        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Edit3 size={14} /> Clarification needed
+        </div>
+      )}
+
+      <div className="onboarding-input-bar">
         <input
-          className="chat-input"
+          className="onboarding-input-field"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={awaitingFollowUp ? 'Answer the clarifying question naturally' : 'Type your answer naturally'}
+          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+          placeholder={awaitingFollowUp ? 'Answer the clarifying question...' : 'Type your answer naturally...'}
           disabled={readyForReview}
+          autoFocus
         />
-        <button className="chat-send-btn" onClick={send} disabled={loading || readyForReview}><Send size={18} /></button>
+        <button className="onboarding-send-btn" onClick={send} disabled={loading || readyForReview || !input.trim()}>
+          <Send size={18} />
+        </button>
       </div>
-      {followUp && !readyForReview && <div className="citation-panel">Clarifying question: {followUp}</div>}
+
       {!readyForReview && sections.some((s) => s.confidence < 30) && (
-        <div className="citation-line">Draft profile is awaiting clarification before confidence is shown.</div>
+        <div style={{ fontSize: 12, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '-8px' }}>
+          <ShieldAlert size={14} /> Draft profile is awaiting clarification
+        </div>
       )}
       {displaySections.map((s) => (
         <div key={s.name} className="citation-panel">
