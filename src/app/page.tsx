@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { ChatInterface } from '@/components/ChatInterface';
 import { TrustScore } from '@/components/TrustScore';
@@ -32,6 +32,11 @@ export default function Home() {
   const [auditRows, setAuditRows] = useState<Array<{ timestamp: string; action: string; suggestion: string; user_decision: string; confidence: number }>>([]);
   const [bulkInflowMinAmount, setBulkInflowMinAmount] = useState(10000);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const financialDataRef = useRef(financialData);
+
+  useEffect(() => {
+    financialDataRef.current = financialData;
+  }, [financialData]);
 
   // Real trust score calculated from financial data
   const trustScore = useMemo(() => calculateTrustScore(financialData), [financialData]);
@@ -55,7 +60,7 @@ export default function Home() {
   const initEncryptedCache = useCallback(async () => {
     if (!appUserId) return;
     const dekBase64 = await generateDekBase64();
-    const encrypted = await encryptWithDekBase64(financialData, dekBase64);
+    const encrypted = await encryptWithDekBase64(financialDataRef.current, dekBase64);
     await fetch('/api/transactions/cache', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +71,7 @@ export default function Home() {
         dekBase64,
       }),
     });
-  }, [appUserId, financialData]);
+  }, [appUserId]);
 
   const refreshFinancialData = useCallback(async (force: boolean) => {
     if (!appUserId) return;
@@ -112,6 +117,9 @@ export default function Home() {
         window.localStorage.setItem('cw_cache_initialized', 'true');
       });
     }
+  }, [initEncryptedCache]);
+
+  useEffect(() => {
     loadSettings();
     loadOnboardingState();
     refreshFinancialData(false);
@@ -119,7 +127,7 @@ export default function Home() {
       refreshFinancialData(false);
     }, 120000);
     return () => window.clearInterval(interval);
-  }, [initEncryptedCache, refreshFinancialData, loadSettings, loadOnboardingState]);
+  }, [refreshFinancialData, loadSettings, loadOnboardingState]);
 
   useEffect(() => {
     if (activeView === 'audit') {
